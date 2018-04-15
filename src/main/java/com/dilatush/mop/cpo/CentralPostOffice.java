@@ -7,6 +7,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.nio.channels.SelectionKey;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,11 +24,13 @@ import static com.dilatush.util.General.isNull;
  */
 public class CentralPostOffice {
 
-    public final static String CPO       = "central";
     public final static String CPO_PO    = "central.po";
     public final static String RECONNECT = "manage.reconnect";
     public final static String CONNECT   = "manage.connect";
     public final static String PONG      = "manage.pong";
+    public final static String STATUS    = "manage.status";
+
+    public final static DateTimeFormatter  TIME_FORMATTER = DateTimeFormatter.ofPattern( "YYYY/MM/dd HH:mm:ss.SSS zzzz" ).withZone( ZoneId.systemDefault() );
 
     private static final Logger LOG = LogManager.getLogger();
 
@@ -162,6 +166,7 @@ public class CentralPostOffice {
 
                     case CONNECT:   handleConnect( _message, false ); break;
                     case RECONNECT: handleConnect( _message, true  ); break;
+                    case STATUS:    handleStatus(  _message                    ); break;
                     case PONG:      handlePong(    _message                    ); break;
 
                     default:
@@ -227,6 +232,49 @@ public class CentralPostOffice {
 
         // reset the time since the last pong was received...
         connection.timeSinceLastPongMS.set( 0 );
+    }
+
+
+    private void handleStatus( final Message _message ) {
+
+        // first we verify that this client is the designated manager...
+        POClient manager = clients.get( _message.fromPO );
+        if( isNull( manager ) || !manager.isManager() ) return;
+
+        // ok, it is the manager - so construct our reply message and send it back...
+        Message msg = new Message( "central.po", _message.from, "manage.status", getNextID(), null, false );
+
+        // first the cpo info...
+        msg.put( "numConnections", connections.size()    );
+        msg.put( "numClients",     clients.size()        );
+        msg.put( "maxMessageSize", config.maxMessageSize );
+        msg.put( "pingIntervalMS", config.pingIntervalMS );
+        msg.put( "name",           config.name           );
+        msg.put( "port",           config.port           );
+        msg.put( "localAddress",   config.localAddress   );
+
+        // then the client information...
+        for( POClient client : clients.values() ) {
+
+            String prefix = "clients." + client.name + ".";
+
+            msg.putDotted( prefix + "name", client.name );
+            msg.putDotted( prefix + "connections", client.connections.get() );
+            msg.putDotted( prefix + "isConnected", isNotNull( client.connection ) );
+            if( isNotNull( client.lastConnectTime ) )
+                msg.putDotted( prefix + "lastConnected", TIME_FORMATTER.format( client.lastConnectTime ) );
+            msg.putDotted( prefix + "secret", client.secretBase64 );
+            msg.putDotted( prefix + "rxMessages", client.rxMessages.get() );
+            msg.putDotted( prefix + "rxBytes", client.rxBytes.get() );
+            msg.putDotted( prefix + "txMessages", client.txMessages.get() );
+            msg.putDotted( prefix + "txBytes", client.txBytes.get() );
+        }
+
+        // encrypt the client information...
+        msg.encrypt( manager.secretBytes, "clients" );
+
+        // now send the message back to the manager...
+        manager.deliver( msg );
     }
 
 

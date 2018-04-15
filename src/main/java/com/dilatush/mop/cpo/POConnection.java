@@ -84,7 +84,7 @@ public class POConnection {
             }
             catch( Exception _e ) {
                 // getting here means we had a problem decoding the received message - we log and ignore...
-                LOG.error( "Could not decode received message: " + new String( frame, StandardCharsets.UTF_8 ) );
+                LOG.error( "Could not decode received message: " + new String( frame, StandardCharsets.UTF_8 ), _e );
             }
         }
     }

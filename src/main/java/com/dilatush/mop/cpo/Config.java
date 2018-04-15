@@ -73,6 +73,8 @@ public class Config {
             String name = jsonClient.getString( FIELD_NAME );
             String secretBase64 = jsonClient.getString( FIELD_SECRET );
             POClient po = new POClient( name, secretBase64 );
+            if( jsonClient.optBoolean( "manager", false ) )
+                po.setManager( true );
             clients.put( name, po );
         }
 

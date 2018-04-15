@@ -38,6 +38,7 @@ import static com.dilatush.util.General.isNull;
     /* package */ AtomicLong            txBytes;
     /* package */ volatile ByteBuffer   currentWrite;  // the buffer currently being written...
     /* package */ Instant               lastConnectTime;
+    /* package */ volatile boolean      manager;
 
 
     /* package */ POClient( final String _name, final String _secretBase64 ) {
@@ -51,6 +52,7 @@ import static com.dilatush.util.General.isNull;
         txMessages   = new AtomicLong( 0 );
         outgoing     = new LinkedBlockingDeque<>( OUTGOING_QUEUE_SIZE );
         currentWrite = null;
+        manager      = false;
     }
 
 
@@ -66,6 +68,8 @@ import static com.dilatush.util.General.isNull;
             LOG.error( "Attempt made to deliver null message" );
             return;
         }
+
+        LOG.debug( "Sending: " + _message.toJSON() );
 
         // serialize our message and add it to our outgoing buffer...
         byte[] serializedBytes = _message.serialize();
@@ -134,6 +138,16 @@ import static com.dilatush.util.General.isNull;
 
             return currentWrite;
         }
+    }
+
+
+    public boolean isManager() {
+        return manager;
+    }
+
+
+    /* package */ void setManager( final boolean _value ) {
+        manager = _value;
     }
 
 

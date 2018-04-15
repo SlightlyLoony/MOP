@@ -89,6 +89,13 @@ Central post office and client post office direct message types:
   central.po    manage.reconnect    Sent as the first message on connection to indicate that the client po is connecting for the second or subsequent
                                     time since it started up.  Otherwise this message is identical to the preceding one.
 
+  central.po    manage.pong         Sent by a client post office in response to a ping message.
+
+  central.po    manage.status       Sent by the manager client post office to request the status of the central post office.  The cpo replies with
+                                    a status message (see below).
+
+  (client).po   manage.status       Status information about the cpo.
+
   (client).po   manage.connect      Sent in response to a manage.connect or manage.reconnect from central.po, to indicate that the cpo accepted the
                                     connection for the first time since the cpo started up.  The "maxMessageSize" attribute has the maximum length of
                                     messages the cpo will accept.  The "pingIntervalMS" attribute has the interval between pings from the central post
@@ -100,8 +107,6 @@ Central post office and client post office direct message types:
 
   (client).po   manage.ping         Sent by central.po periodically (at pingIntervalMS intervals) to all connected clients.  Client post offices must
                                     send a pong message in response, which must be received by the central post office before the next ping.
-
-  central.po    manage.pong         Sent by a client post office in response to a ping message.
 
   (client).po   manage.subscribe    Sent by a client post office when a local mailbox subscribes to a publish message whose source is foreign.  This
                                     message is sent to the foreign post office whose mailbox is the source of the publish message being subscribed to.

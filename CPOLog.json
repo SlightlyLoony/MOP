@@ -1,0 +1,20 @@
+{ "configuration": {
+  "status": "error",
+  "name": "CPO",
+  "packages": "org.apache.logging.log4j.test",
+  "properties": {
+  },
+  "appenders": {
+    "Console": {
+      "name": "STDOUT",
+      "PatternLayout": { "pattern": "%d{yyyy/MM/dd HH:mm:ss.SSS} %20.20C{1} %15.15t %m%n" }
+    }
+  },
+  "loggers": {
+    "root": {
+      "level": "DEBUG",
+      "AppenderRef": { "ref": "STDOUT" }
+    }
+  }
+}
+}

@@ -47,6 +47,7 @@ public class Message extends HJSONObject {
     public final static String SECURE_DATA   = ENVELOPE_NAME + ".secure";
 
     public final String  from;
+    public final String  fromPO;
     public final String  to;
     public final String  type;
     public final String  id;
@@ -74,7 +75,8 @@ public class Message extends HJSONObject {
         id        = envelope.optString ( ID_ATTR,     null  );
         reply     = envelope.optString ( REPLY_ATTR,  null  );
         expect    = envelope.optBoolean( EXPECT_ATTR, false );
-        majorType = initMajorType( type );
+        majorType = getPrefix( type );
+        fromPO    = getPrefix( from );
 
         validate( from, type, id );
     }
@@ -92,7 +94,8 @@ public class Message extends HJSONObject {
         id        = _id;
         reply     = _reply;
         expect    = _expect;
-        majorType = initMajorType( type );
+        majorType = getPrefix( type );
+        fromPO    = getPrefix( from );
 
         // stuff our envelope attributes...
         JSONObject envelope = new JSONObject();
@@ -107,10 +110,10 @@ public class Message extends HJSONObject {
     }
 
 
-    private static String initMajorType( final String _type ) {
-        if( isEmpty( _type ) ) return null;
-        if( !_type.contains( "." ) ) return _type;
-        return _type.substring( 0, _type.lastIndexOf( '.' ) );
+    private static String getPrefix( final String _dottedValue ) {
+        if( isEmpty( _dottedValue ) ) return "";
+        if( !_dottedValue.contains( "." ) ) return _dottedValue;
+        return _dottedValue.substring( 0, _dottedValue.lastIndexOf( '.' ) );
     }
 
 

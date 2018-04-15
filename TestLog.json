@@ -1,6 +1,6 @@
 { "configuration": {
   "status": "error",
-  "name": "RoutingTest",
+  "name": "Test",
   "packages": "org.apache.logging.log4j.test",
   "properties": {
     "property": {
