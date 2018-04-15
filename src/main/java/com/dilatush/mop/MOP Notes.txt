@@ -1,0 +1,123 @@
+Message-Oriented Programming notes
+
+This package implements a simple asynchronous, multi-process message-oriented programming framework with both publish/subscribe and direct mail with a reply
+mechanism.
+
+What does all that mean?
+
+1.   It is simple because the API is minimal and there are relatively few dedicated classes.  Instead, much of the API uses string identifiers in lieu of the
+     more conventional class hierarchy.  If you're familiar with web client/server programming using JSON, you'll feel right at home.  If you're more
+     accustomed to POJOs, it will seem weird at first.  The main benefit of this style is the nicely loose coupling between systems using the framework.
+     You can have programs that share zero code (other than the framework itself) and yet still easily communicate with each other.
+
+2.   It is asynchronous because the sender of a message is not running in the same thread (or possibly not even in the same process or on the same machine) as
+     the receiver.  This operates much like a real-world post office.  You send a letter and go on about your business.  Some letters never get a response.
+     Other letters will eventually get a response, which you pick up later at the post office.
+
+3.   It is multi-process because multiple processes (on the same or different machines) can send messages to each other.  When the framework is used with
+     multiple processes (that feature is optional), a single instance of a "central" post office handles the routing of messages from one process to another.
+     Actually the routing is taking place between the framework's post offices, which are normally created as singletons within a process -- though it is
+     possible to have multiple post offices within a single process, with the central process routing messages between them.
+
+4.   Publish/subscribe means that you can publish typed mail, and any mailbox can subscribe to that type.  In this framework, the type has two parts: a major
+     and a minor type.  For instance, a type "sensor.temperature" has the major type "sensor" and the minor type "temperature".  Another mailbox could
+     subscribe either to the major type (in this example, then getting messages for all sensors) or to the combination of major and minor type (in this
+     example getting messages for only temperature sensors).  Subscriptions are made to messages from a particular mailbox, so types are only unique within
+     the scope of a particular mailbox.
+
+5.   Direct mail means that a message may be directly sent from one place to another.  In this framework, that means from one mailbox directly to another
+     mailbox.  But what is a mailbox?  A mailbox is a named facility associated with a particular post office, with its name unique within the scope of that
+     post office.  Post offices are also named facilities that are associated with a particular central post office, with its name unique with the scope of
+     that central post office.  The central post office and its subordinate post offices with their associated mailboxes forms the completely world in which
+     messages may flow.  A sending or receiving mailbox is uniquely identified by its <post office name>:<mailbox name> that is a complete and sufficient
+     address for the message's "from" or "to" address.  The sender of a message calls a method on its mailbox to send the message.  The "from" address is
+     automatically added by the mailbox.  The "to" address is supplied by the sender.
+
+6.   Having a reply mechanism for direct mail means that one mailbox can send a message to another mailbox, and then wait for a reply to that message.  This
+     is analogous to a function call that has a return value.
+
+
+Some jargon:
+
+  actor                A Java object instance that uses this MOP framework.
+  central post office  A server that provides messaging services between post offices, which are possibly in different services or different machines.
+  envelope             A serializable collection of attributes (see below) to identify and route a message.
+  message              A serializable object containing an envelope and arbitrary contents.
+  MOP                  Message-Oriented Programming.
+  post office          A Java object instance that provide messaging service within a single process.
+
+
+Message envelope attributes:
+
+  *  -={([env])}=- the container for the envelope attributes
+
+        *  from    the "from" address for the message (<post office name>.<mailbox name>)
+        *  to      the "to" address if this is a directly mailed message (and not present in a published message) (<post office name>.<mailbox name>)
+        *  type    the type of message if this is a published message (type is <type>.<subtype>) (and optional for a direct message)
+        *  id      the unique ID of this message (id is <integer(base 36)>.<post office name>)
+        *  reply   the id of the message that this message is a reply to
+        *  expect  true if a reply is expected, false or absent if not (not used in published message)
+
+  *  arbitrary JSON contents
+
+  Example of a complete published message (in this case broadcasting the temperature) serialized to JSON:
+     {"!@#$-env":{"from":"irrigation.io","type":"sensor.temperature","id":"1f44h.irrigation"},"pumphouse temperature C":18.22}
+
+  Example of a complete direct message (in this case ordering the pumphouse to turn off the pump), along with the reply that is just a confirmation:
+     {"!@#$-env":{"from":"homeweb.io","to":"irrigation.io","id":"1f.homeweb"},"pump":"off","expect":true}
+     {"!@#$-env":{"from":"irrigation.io","to":"homeweb.io","id":"1fr3h.irrigation","reply":"1f.homeweb"}}
+
+
+Reserved names:
+
+  Post Offices:
+     central       the name of the central post office
+
+  Mailboxes:
+     po            the name of the mailbox for the post office itself (including the central post office)
+
+
+Central post office and client post office direct message types:
+
+  To            Type                Description
+  ============  =================== ====================================================================================================================
+  central.po    manage.connect      Sent as the first message on connection to indicate that the client po is connecting for the first time since it
+                                    started up.  The source client po is in the "from" envelope attribute, as is the "id" (both used in the
+                                    authenticator).  The "authenticator" attribute is the base 64 encoded authentication token, which is the SHA256 hash
+                                    of the shared secret, the UTF8 encoded "from" client po name, and the UTF8 encoded message "id".
+
+  central.po    manage.reconnect    Sent as the first message on connection to indicate that the client po is connecting for the second or subsequent
+                                    time since it started up.  Otherwise this message is identical to the preceding one.
+
+  (client).po   manage.connect      Sent in response to a manage.connect or manage.reconnect from central.po, to indicate that the cpo accepted the
+                                    connection for the first time since the cpo started up.  The "maxMessageSize" attribute has the maximum length of
+                                    messages the cpo will accept.  The "pingIntervalMS" attribute has the interval between pings from the central post
+                                    office to the client post office, in milliseconds.
+
+  (client).po   manage.reconnect    Sent in response to a manage.connect or manage.reconnect from central.po, to indicate that the cpo accepted the
+                                    connection for the second or subsequent time since the cpo started up.  Otherwise this message is identical to the
+                                    preceding one.
+
+  (client).po   manage.ping         Sent by central.po periodically (at pingIntervalMS intervals) to all connected clients.  Client post offices must
+                                    send a pong message in response, which must be received by the central post office before the next ping.
+
+  central.po    manage.pong         Sent by a client post office in response to a ping message.
+
+  (client).po   manage.subscribe    Sent by a client post office when a local mailbox subscribes to a publish message whose source is foreign.  This
+                                    message is sent to the foreign post office whose mailbox is the source of the publish message being subscribed to.
+                                    This message is "snooped" by the central post office so that it can maintain routing tables for publish messages
+                                    being sent from one post office to another.  This message has a reply requested to acknowledge receipt by the
+                                    foreign post office.  The source attribute contains the source address (po.mailbox), the requestor attribute
+                                    contains the subscribing mailbox id (po.mailbox), and the type attribute contains the type of message being
+                                    subscribed to (major or major.minor).  This message is also sent by the central post office when a client first
+                                    connects (e.g., not on reconnections), for any subscriptions the central post office knows are sourced on the
+                                    connecting post office.  The latter messages do not have a reply requested.
+
+  (client).po   manage.unsubscribe  Sent by a client post office when a local mailbox unsubscribes from a previously subscribed publish message whose
+                                    source is foreign.  This message is sent to the foreign post office whose mailbox is the source of the publish
+                                    message being unsubscribed from. This message is "snooped" by the central post office so that it can maintain
+                                    routing tables for publish messages being sent from one post office to another.  This message has a reply
+                                    requested to acknowledge receipt by the foreign post office.  The source attribute contains the source address
+                                    (po.mailbox), the requestor attribute contains the unsubscribing mailbox id (po.mailbox), and the type attribute
+                                    contains the type of message being subscribed to (major or major.minor).
+

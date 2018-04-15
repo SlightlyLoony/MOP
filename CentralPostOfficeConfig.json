@@ -1,0 +1,2 @@
+{"clients":[{"name":"test2","secret":"poi4ionjoi0943rnioaoioippodfgegjeiohjio"},{"name":"test1","secret":"jklhdfgsjhiaslkfbkjalskdjfhloierhqoigrh"}],
+  "echoIntervalMS":5000, "localAddress" : "0.0.0.0", "port" : 4000,"pingIntervalMS" : 5000,"maxMsgSize" : 5000,"name" : "Central Post Office" }
