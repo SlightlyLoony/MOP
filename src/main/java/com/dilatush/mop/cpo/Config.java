@@ -27,6 +27,7 @@ public class Config {
     private static final String FIELD_PORT             = "port";
     private static final String FIELD_MAX_MSG_SIZE     = "maxMsgSize";
     private static final String FIELD_PING_INTERVAL_MS = "pingIntervalMS";
+    private static final String FIELD_MANAGER          = "manager";
 
     /* package */ final String localAddress;
     /* package */ final int    port;
@@ -73,7 +74,7 @@ public class Config {
             String name = jsonClient.getString( FIELD_NAME );
             String secretBase64 = jsonClient.getString( FIELD_SECRET );
             POClient po = new POClient( name, secretBase64 );
-            if( jsonClient.optBoolean( "manager", false ) )
+            if( jsonClient.optBoolean( FIELD_MANAGER, false ) )
                 po.setManager( true );
             clients.put( name, po );
         }
@@ -99,6 +100,7 @@ public class Config {
             JSONObject jsonClient = new JSONObject();
             jsonClient.put( FIELD_NAME, po.name );
             jsonClient.put( FIELD_SECRET, po.secretBase64 );
+            jsonClient.put( FIELD_MANAGER, po.manager );
             jsonClients.put( jsonClient );
         }
 

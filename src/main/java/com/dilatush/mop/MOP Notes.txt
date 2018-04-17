@@ -96,6 +96,21 @@ Central post office and client post office direct message types:
 
   (client).po   manage.status       Status information about the cpo.
 
+  central.po    manage.write        Sent by the manager client post office to request the central post office to write out its configuration file,
+                                    using the current running configuration.  Sends an acknowledgement (see below) when complete.
+
+  (client).po   manage.write        Acknowledges that the central post office's configuration file has been written out.
+
+  central.po    manage.add          Sent by the manager client post office to request the central post office to add a new post office.  The "name"
+                                    attribute specifies the name of the new post office, and the "secret" attribute specifies the shared secret.
+
+  (client).po   manage.add          Acknowledges that the central post office has added the new post office.
+
+  central.po    manage.delete       Sent by the manager client post office to request the central post office to delete a post office.  The "name"
+                                    attribute specifies the name of the post office to be deleted.
+
+  (client).po   manage.delete       Acknowledges that the central post office has deleted the specified post office.
+
   (client).po   manage.connect      Sent in response to a manage.connect or manage.reconnect from central.po, to indicate that the cpo accepted the
                                     connection for the first time since the cpo started up.  The "maxMessageSize" attribute has the maximum length of
                                     messages the cpo will accept.  The "pingIntervalMS" attribute has the interval between pings from the central post

@@ -217,6 +217,10 @@ public class Message extends HJSONObject {
      */
     public void decrypt( final byte[] _secret ) {
 
+        // if there is no secure data field, just leave...
+        if( !hasDotted( SECURE_DATA ) )
+            return;
+
         // first thing we do is get our encrypted bytes...
         byte[] encrypted = Base64.decodeBytes( getStringDotted( SECURE_DATA ) );
 

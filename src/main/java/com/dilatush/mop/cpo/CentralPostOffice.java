@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.nio.channels.SelectionKey;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -16,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static com.dilatush.util.General.isNotNull;
 import static com.dilatush.util.General.isNull;
+import static com.dilatush.util.Strings.isNonEmpty;
 
 /**
  * Implements a MOP Central Post Office that routes messages between Post Offices.
@@ -29,15 +31,20 @@ public class CentralPostOffice {
     public final static String CONNECT   = "manage.connect";
     public final static String PONG      = "manage.pong";
     public final static String STATUS    = "manage.status";
+    public final static String WRITE     = "manage.write";
+    public final static String ADD       = "manage.add";
+    public final static String DELETE    = "manage.delete";
 
-    public final static DateTimeFormatter  TIME_FORMATTER = DateTimeFormatter.ofPattern( "YYYY/MM/dd HH:mm:ss.SSS zzzz" ).withZone( ZoneId.systemDefault() );
+    public final static DateTimeFormatter  TIME_FORMATTER
+            = DateTimeFormatter
+            .ofPattern( "YYYY/MM/dd HH:mm:ss.SSS zzzz" )
+            .withZone( ZoneId.systemDefault() );
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOG                    = LogManager.getLogger();
+    private static final int    PONG_CHECK_INTERVAL_MS = 100;
+    private static final int    RXBYTES_QUEUE_SIZE     = 100;       // number of blocks of bytes that can be in queue at once...
 
-    private static final int PONG_CHECK_INTERVAL_MS = 100;
-
-    private static final int RXBYTES_QUEUE_SIZE     = 100;       // number of blocks of bytes that can be in queue at once...
-
+    private       final Instant                     started;
     private       final AtomicLong                  nextID;
     private       final Timer                       timer;
     private       final Map<String,Set<String>>     subscriptions;  // note 1...
@@ -60,6 +67,7 @@ public class CentralPostOffice {
     //
 
     public CentralPostOffice( final String _configFilePath ) {
+        started        = Instant.now();
         configFilePath = _configFilePath;
         timer          = new Timer( "Central Post Office Timer", true );
         connections    = new ConcurrentHashMap<>();
@@ -167,6 +175,9 @@ public class CentralPostOffice {
                     case CONNECT:   handleConnect( _message, false ); break;
                     case RECONNECT: handleConnect( _message, true  ); break;
                     case STATUS:    handleStatus(  _message                    ); break;
+                    case WRITE:     handleWrite(   _message                    ); break;
+                    case ADD:       handleAdd(     _message                    ); break;
+                    case DELETE:    handleDelete(  _message                    ); break;
                     case PONG:      handlePong(    _message                    ); break;
 
                     default:
@@ -235,39 +246,104 @@ public class CentralPostOffice {
     }
 
 
-    private void handleStatus( final Message _message ) {
+    private void handleDelete( final Message _message ) {
 
-        // first we verify that this client is the designated manager...
+        // first we verify that this client is a designated manager...
         POClient manager = clients.get( _message.fromPO );
         if( isNull( manager ) || !manager.isManager() ) return;
 
-        // ok, it is the manager - so construct our reply message and send it back...
+        // ok, it is a manager, so delete the specified post office...
+        _message.decrypt( manager.secretBytes );
+        String po           = _message.optString( "name",   "" );
+
+        // if we didn't get the fields we need, don't delete anything...
+        if( isNonEmpty( po ) )
+            clients.remove( po );
+
+        // set the ack back...
+        Message msg = new Message( "central.po", _message.from, "manage.delete", getNextID(), null, false );
+        manager.deliver( msg );
+    }
+
+
+    private void handleAdd( final Message _message ) {
+
+        // first we verify that this client is a designated manager...
+        POClient manager = clients.get( _message.fromPO );
+        if( isNull( manager ) || !manager.isManager() ) return;
+
+        // ok, it is a manager, so create and add the new post office...
+        _message.decrypt( manager.secretBytes );
+        String po           = _message.optString( "name",   "" );
+        String secretBase64 = _message.optString( "secret", "" );
+
+        // if we didn't get the fields we need, don't add anything...
+        if( isNonEmpty( po ) && isNonEmpty( secretBase64 ) ) {
+            POClient client = new POClient( po, secretBase64 );
+            clients.put( po, client );
+        }
+
+        // set the ack back...
+        Message msg = new Message( "central.po", _message.from, "manage.add", getNextID(), null, false );
+        manager.deliver( msg );
+    }
+
+
+    private void handleWrite( final Message _message ) {
+
+        // first we verify that this client is a designated manager...
+        POClient manager = clients.get( _message.fromPO );
+        if( isNull( manager ) || !manager.isManager() ) return;
+
+        // ok, it is a manager, so write the configuration file out...
+        config.write( configFilePath );
+
+        // now send the ack back...
+        Message msg = new Message( "central.po", _message.from, "manage.write", getNextID(), null, false );
+        manager.deliver( msg );
+    }
+
+
+    private void handleStatus( final Message _message ) {
+
+        // first we verify that this client is a designated manager...
+        POClient manager = clients.get( _message.fromPO );
+        if( isNull( manager ) || !manager.isManager() ) return;
+
+        // ok, it is a manager - so construct our reply message and send it back...
         Message msg = new Message( "central.po", _message.from, "manage.status", getNextID(), null, false );
 
         // first the cpo info...
-        msg.put( "numConnections", connections.size()    );
-        msg.put( "numClients",     clients.size()        );
-        msg.put( "maxMessageSize", config.maxMessageSize );
-        msg.put( "pingIntervalMS", config.pingIntervalMS );
-        msg.put( "name",           config.name           );
-        msg.put( "port",           config.port           );
-        msg.put( "localAddress",   config.localAddress   );
+        double uptimeDays = Duration.between( started, Instant.now() ).toNanos() / (24d * 60 * 60 * 1000000000);
+        msg.put( "started",        TIME_FORMATTER.format( started ) );
+        msg.put( "upDays",         uptimeDays                       );
+        msg.put( "numConnections", connections.size()               );
+        msg.put( "numClients",     clients.size()                   );
+        msg.put( "maxMessageSize", config.maxMessageSize            );
+        msg.put( "pingIntervalMS", config.pingIntervalMS            );
+        msg.put( "name",           config.name                      );
+        msg.put( "port",           config.port                      );
+        msg.put( "localAddress",   config.localAddress              );
 
         // then the client information...
         for( POClient client : clients.values() ) {
 
             String prefix = "clients." + client.name + ".";
 
-            msg.putDotted( prefix + "name", client.name );
-            msg.putDotted( prefix + "connections", client.connections.get() );
-            msg.putDotted( prefix + "isConnected", isNotNull( client.connection ) );
-            if( isNotNull( client.lastConnectTime ) )
+            msg.putDotted( prefix + "name",              client.name                                     );
+            msg.putDotted( prefix + "manager",           client.manager                                  );
+            msg.putDotted( prefix + "connections",       client.connections.get()                        );
+            msg.putDotted( prefix + "isConnected",       isNotNull( client.connection )                  );
+            if( isNotNull( client.lastConnectTime ) ) {
+                uptimeDays = Duration.between(           client.lastConnectTime, Instant.now() ).toNanos() / (24d * 60 * 60 * 1000000000);
                 msg.putDotted( prefix + "lastConnected", TIME_FORMATTER.format( client.lastConnectTime ) );
-            msg.putDotted( prefix + "secret", client.secretBase64 );
-            msg.putDotted( prefix + "rxMessages", client.rxMessages.get() );
-            msg.putDotted( prefix + "rxBytes", client.rxBytes.get() );
-            msg.putDotted( prefix + "txMessages", client.txMessages.get() );
-            msg.putDotted( prefix + "txBytes", client.txBytes.get() );
+                msg.putDotted( prefix + "upDays",        uptimeDays                                      );
+            }
+            msg.putDotted( prefix + "secret",            client.secretBase64                             );
+            msg.putDotted( prefix + "rxMessages",        client.rxMessages.get()                         );
+            msg.putDotted( prefix + "rxBytes",           client.rxBytes.get()                            );
+            msg.putDotted( prefix + "txMessages",        client.txMessages.get()                         );
+            msg.putDotted( prefix + "txBytes",           client.txBytes.get()                            );
         }
 
         // encrypt the client information...
