@@ -38,7 +38,7 @@ public class CentralPostOfficeImpl {
         String logger = "CPOLog.json";
         if( isNotNull( (Object) _args ) && (_args.length > 1) ) logger = _args[1];
         if( !new File( config ).exists() ) {
-            System.out.println( "CPO log configuration file " + config + " does not exist!" );
+            System.out.println( "CPO log configuration file " + logger + " does not exist!" );
             return;
         }
 

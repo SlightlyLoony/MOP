@@ -1,0 +1,31 @@
+Standard MOP message schemas (for fields outside the envelope):
+
+Monitor messages:
+   JVM:
+      monitor.jvm.usedBytes           (long)    memory allocated and actually being used, both code and data
+      monitor.jvm.freeBytes           (long)    memory allocated by not currently in use
+      monitor.jvm.allocatedBytes      (long)    memory allocated (sum of used and free memory)
+      monitor.jvm.availableBytes      (long)    memory that is currently unallocated, but which the JVM will try to allocate if needed
+      monitor.jvm.maxBytes            (long)    memory that the JVM could use (sum of allocated and available)
+      monitor.jvm.cpus                (int)     number of CPUs available to the JVM
+      monitor.jvm.totalThreads        (int)     total number of active threads
+      monitor.jvm.newThreads          (int)     new threads that have not yet started
+      monitor.jvm.runningThreads      (int)     running threads
+      monitor.jvm.blockedThreads      (int)     threads blocked on a monitor
+      monitor.jvm.waitingThreads      (int)     threads waiting for another thread
+      monitor.jvm.timedWaitingThreads (int)     threads waiting for another thread, up to a certain time
+      monitor.jvm.terminatedThreads   (int)     threads that have terminated
+
+   OS:
+      monitor.os.valid                (boolean) true if the results are valid; false otherwise
+      monitor.os.errorMessage         (string)  present only for invalid results
+      monitor.os.os                   (string)  operating system type (OSX or Linux)
+      monitor.os.hostName             (string)  host name, as reported by uname
+      monitor.os.kernelName           (string)  kernel name, as reported by uname
+      monitor.os.kernelVersion        (string)  kernel version, as reported by uname
+      monitor.os.architecture         (string)  processor architecture, as reported by uname
+      monitor.os.totalMemory          (long)    total memory (RAM) in the machine
+      monitor.os.usedMemory           (long)    memory in use (includes OS, swap, and application)
+      monitor.os.freeMemory           (long)    memory not in use
+      monitor.os.cpuBusyPct           (float)   CPU percent busy (0..100) (past 60 seconds on OSX, one second on Linux)
+      monitor.os.cpuIdlePct           (float)   CPU percent idle (0..100) (past 60 seconds on OSX, one second on Linux)
