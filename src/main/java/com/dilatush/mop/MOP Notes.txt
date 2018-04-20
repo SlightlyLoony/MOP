@@ -57,6 +57,7 @@ Message envelope attributes:
         *  id      the unique ID of this message (id is <integer(base 36)>.<post office name>)
         *  reply   the id of the message that this message is a reply to
         *  expect  true if a reply is expected, false or absent if not (not used in published message)
+        *  secure  present if some fields in the message have been encrypted
 
   *  arbitrary JSON contents
 
@@ -110,6 +111,10 @@ Central post office and client post office direct message types:
                                     attribute specifies the name of the post office to be deleted.
 
   (client).po   manage.delete       Acknowledges that the central post office has deleted the specified post office.
+
+  central.po    manage.monitor      Sent by the client post offices to request a report from the JVM and OS monitors in the central post office.
+
+  (client).(mb) manage.monitor      A report from the central post office JVM and OS monitors.
 
   (client).po   manage.connect      Sent in response to a manage.connect or manage.reconnect from central.po, to indicate that the cpo accepted the
                                     connection for the first time since the cpo started up.  The "maxMessageSize" attribute has the maximum length of

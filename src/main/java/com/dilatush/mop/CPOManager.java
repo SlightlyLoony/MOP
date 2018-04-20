@@ -70,12 +70,13 @@ public class CPOManager {
             String[] parts = command.split( "\\s+" );
             switch( parts[0] ) {
 
-                case "quit":   handleQuit   ( parts ); break;
-                case "status": handleStatus ( parts ); break;
-                case "write":  handleWrite  ( parts ); break;
-                case "delete": handleDelete ( parts ); break;
-                case "add":    handleAdd    ( parts ); break;
-                case "help":   handleHelp   ( parts ); break;
+                case "quit":    handleQuit   ( parts ); break;
+                case "status":  handleStatus ( parts ); break;
+                case "write":   handleWrite  ( parts ); break;
+                case "delete":  handleDelete ( parts ); break;
+                case "add":     handleAdd    ( parts ); break;
+                case "monitor": handleMonitor( parts ); break;
+                case "help":    handleHelp   ( parts ); break;
 
                 default: handleError( parts ); break;
             }
@@ -100,6 +101,12 @@ public class CPOManager {
 
         // send the message to the CPO and wait for the acknowledgement...
         ma.requestDelete( po );
+        wait = true;
+    }
+
+
+    private static void handleMonitor( final String[] _parts ) {
+        ma.requestMonitor();
         wait = true;
     }
 
@@ -180,12 +187,13 @@ public class CPOManager {
 
         String helpOn = (_parts.length > 1) ? _parts[1] : "";
         switch( helpOn ) {
-            case "quit":   handleHelpQuit();   break;
-            case "help":   handleHelpHelp();   break;
-            case "status": handleHelpStatus(); break;
-            case "write":  handleHelpWrite();  break;
-            case "add":    handleHelpAdd();    break;
-            case "delete": handleHelpDelete(); break;
+            case "quit":    handleHelpQuit();    break;
+            case "help":    handleHelpHelp();    break;
+            case "status":  handleHelpStatus();  break;
+            case "write":   handleHelpWrite();   break;
+            case "add":     handleHelpAdd();     break;
+            case "delete":  handleHelpDelete();  break;
+            case "monitor": handleHelpMonitor(); break;
             default:
                 handleHelpQuit();
                 handleHelpHelp();
@@ -193,10 +201,19 @@ public class CPOManager {
                 handleHelpWrite();
                 handleHelpAdd();
                 handleHelpDelete();
+                handleHelpMonitor();
                 break;
         }
         wait = true;
         waitForAck();
+    }
+
+
+    private static void handleHelpMonitor() {
+        print( "" );
+        print( "monitor      Requests a monitor report from the Central Post Office, which has information " );
+        print( "             about the operating system and Java virtual machine that the Central Post" );
+        print( "             Office is running on" );
     }
 
 
@@ -283,6 +300,7 @@ public class CPOManager {
         print( "write        write the configuration file on the CPO"   );
         print( "delete <po>  delete the given Post Office from the CPO" );
         print( "add <po>     add the given Post Office to the CPO"      );
+        print( "monitor      requests a monitor report from the CPO"    );
         print( "help <cmd>   get some help on using the CPOM"           );
         print( "quit         quit the CPOM"                             );
         print( ""                                                       );
@@ -306,10 +324,11 @@ public class CPOManager {
 
         protected ManagerActor( final PostOffice _po ) {
             super( _po, "manager" );
-            registerFQDirectMessageHandler( this::statusHandler, "central.po", "manage", "status" );
-            registerFQDirectMessageHandler( this::writeHandler,  "central.po", "manage", "write"  );
-            registerFQDirectMessageHandler( this::addHandler,    "central.po", "manage", "add"    );
-            registerFQDirectMessageHandler( this::deleteHandler, "central.po", "manage", "delete" );
+            registerFQDirectMessageHandler( this::statusHandler,  "central.po", "manage", "status"  );
+            registerFQDirectMessageHandler( this::writeHandler,   "central.po", "manage", "write"   );
+            registerFQDirectMessageHandler( this::addHandler,     "central.po", "manage", "add"     );
+            registerFQDirectMessageHandler( this::deleteHandler,  "central.po", "manage", "delete"  );
+            registerFQDirectMessageHandler( this::monitorHandler, "central.po", "manage", "monitor" );
         }
 
 
@@ -342,6 +361,12 @@ public class CPOManager {
         }
 
 
+        private void requestMonitor() {
+            Message msg = mailbox.createDirectMessage( "central.po", "manage.monitor", false );
+            mailbox.send( msg );
+        }
+
+
         protected void writeHandler( final Message _message ) {
             print( "CPO configuration file written!" );
             waitForAck();
@@ -351,6 +376,29 @@ public class CPOManager {
         protected void deleteHandler( final Message _message ) {
             print( "Post office deleted!" );
             print( "NOTE: Don't forget to write the configuration file when you're finished adding and deleting post offices...");
+            waitForAck();
+        }
+
+
+        protected void monitorHandler( final Message _message ) {
+            print( "" );
+            print( "Monitor results for Central Post Office:" );
+            print( "  Operating system: " );
+            if( _message.optBooleanDotted( "monitor.os.valid", false ) ) {
+                print( "             OS: " + _message.getStringDotted( "monitor.os.os" ) );
+                print( "      Host name: " + _message.getStringDotted( "monitor.os.hostName" ) );
+                print( "      Total RAM: " + _message.getLongDotted( "monitor.os.totalMemory" ) + " bytes" );
+                print( "       Free RAM: " + _message.getLongDotted( "monitor.os.freeMemory" ) + " bytes" );
+                print( "       CPU busy: " + _message.getFloatDotted( "monitor.os.cpuBusyPct" ) + "%" );
+            }
+            else {
+                print( "    Invalid OS monitoring results: " + _message.optStringDotted( "monitor.os.errorMessage", "(no message)" ) );
+            }
+            print( "  Java Virtual Machine:" );
+            print( "           Used RAM: " + _message.getLongDotted( "monitor.jvm.usedBytes" ) + " bytes" );
+            print( "            Max RAM: " + _message.getLongDotted( "monitor.jvm.maxBytes" ) + " bytes" );
+            print( "            Threads: " + _message.getIntDotted( "monitor.jvm.totalThreads" ) );
+            print( "    Running Threads: " + _message.getIntDotted( "monitor.jvm.runningThreads" ) );
             waitForAck();
         }
 

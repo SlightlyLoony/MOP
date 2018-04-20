@@ -1,6 +1,8 @@
 package com.dilatush.mop.cpo;
 
 import com.dilatush.mop.Message;
+import com.dilatush.mop.util.JVMMonitor;
+import com.dilatush.mop.util.OSMonitor;
 import com.dilatush.util.Base64;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,6 +36,7 @@ public class CentralPostOffice {
     public final static String WRITE     = "manage.write";
     public final static String ADD       = "manage.add";
     public final static String DELETE    = "manage.delete";
+    public final static String MONITOR   = "manage.monitor";
 
     public final static DateTimeFormatter  TIME_FORMATTER
             = DateTimeFormatter
@@ -57,6 +60,7 @@ public class CentralPostOffice {
     /* package */ final Map<String,POClient>        clients;
 
     /* package */ volatile boolean shutdown;
+    private       volatile RunMonitors monitors;    // keeps a monitor reference until it has finished, so GC doesn't get it...
 
     // Notes:
     //
@@ -97,6 +101,8 @@ public class CentralPostOffice {
      * Shuts down the central post office, including all subordinate threads.
      */
     public void shutdown() {
+
+        LOG.info( "Central Post Office is shutting down" );
 
         // let all our threads know we're shutting down...
         shutdown = true;
@@ -178,6 +184,7 @@ public class CentralPostOffice {
                     case WRITE:     handleWrite(   _message                    ); break;
                     case ADD:       handleAdd(     _message                    ); break;
                     case DELETE:    handleDelete(  _message                    ); break;
+                    case MONITOR:   handleMonitor( _message                    ); break;
                     case PONG:      handlePong(    _message                    ); break;
 
                     default:
@@ -208,6 +215,47 @@ public class CentralPostOffice {
     }
 
 
+    private void handleMonitor( final Message _message ) {
+
+        LOG.info( "Received monitor request from: " + _message.from );
+
+        // run the monitors in another thread so that we don't block this one (monitoring can take up to a second or two)...
+        monitors = new RunMonitors( _message );
+    }
+
+
+    private class RunMonitors extends Thread {
+
+        private Message message;
+        private POClient client;
+
+        private RunMonitors( final Message _message ) {
+            client = clients.get( _message.fromPO );
+            if( isNull( client ) ) {
+                LOG.error( "Received manage.monitor message from unknown post office: " + _message.fromPO );
+                monitors = null;  // kill our reference...
+                return;
+            }
+            message = new Message( "central.po", _message.from, "manage.monitor", getNextID(), null, false );
+            setName( "Run Monitors" );
+            setDaemon( true );
+            start();
+        }
+
+
+        @Override
+        public void run() {
+
+            OSMonitor osm = new OSMonitor();
+            JVMMonitor jvm = new JVMMonitor();
+            osm.fill( message );
+            jvm.fill( message );
+            client.deliver( message );
+            monitors = null;  // kill our reference so that GC will clean up this object...
+        }
+    }
+
+
     private void handleSubscriptionSnooping( final Message _message ) {
 
         boolean isSubscribe = _message.type.endsWith( ".subscribe" );
@@ -226,10 +274,13 @@ public class CentralPostOffice {
         else {
             destinations.remove( _message.getString( "requestor" ) );
         }
+        LOG.info( "Snooping on " + (isSubscribe ? "add" : "remove") + " subscription to: " + key + " from " + _message.getString( "requestor" ) );
     }
 
 
     private void handlePong( final Message _message ) {
+
+        LOG.info( "Received pong from: " + _message.from );
 
         // get the connection info (inserted by POConnection)...
         String connectionName = _message.optString( POConnection.CONNECTION_NAME, null );
@@ -254,7 +305,7 @@ public class CentralPostOffice {
 
         // ok, it is a manager, so delete the specified post office...
         _message.decrypt( manager.secretBytes );
-        String po           = _message.optString( "name",   "" );
+        String po = _message.optString( "name",   "" );
 
         // if we didn't get the fields we need, don't delete anything...
         if( isNonEmpty( po ) )
@@ -263,6 +314,8 @@ public class CentralPostOffice {
         // set the ack back...
         Message msg = new Message( "central.po", _message.from, "manage.delete", getNextID(), null, false );
         manager.deliver( msg );
+
+        LOG.info( "Deleted post office \"" + po + "\" from configured clients" );
     }
 
 
@@ -286,6 +339,8 @@ public class CentralPostOffice {
         // set the ack back...
         Message msg = new Message( "central.po", _message.from, "manage.add", getNextID(), null, false );
         manager.deliver( msg );
+
+        LOG.info( "Added post office \"" + po + "\" to configured clients" );
     }
 
 
@@ -301,6 +356,8 @@ public class CentralPostOffice {
         // now send the ack back...
         Message msg = new Message( "central.po", _message.from, "manage.write", getNextID(), null, false );
         manager.deliver( msg );
+
+        LOG.info( "Wrote configuration file" );
     }
 
 
@@ -351,6 +408,8 @@ public class CentralPostOffice {
 
         // now send the message back to the manager...
         manager.deliver( msg );
+
+        LOG.info( "Sent Central Post Office status to " + _message.from );
     }
 
 
@@ -424,6 +483,8 @@ public class CentralPostOffice {
     // We get here if a client just connected.  This method re-sends all the subscription requests that the central post office has seen being sent
     // to the post office that just connected.
     private void handleSubscriptionRefresh( final POClient _client ) {
+
+        LOG.info( "Refreshing subscriptions for post office \"" + _client.name + "\"" );
 
         // scan all subscriptions, looking for those that are sourced on the specified client...
         String prefix = _client.name + ".";   // the key prefix indicating subscriptions we care about...
