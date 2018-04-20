@@ -72,17 +72,28 @@ public class PostOffice extends Thread {
      * @param _configFilePath the path to the file containing this post office's configuration.
      */
     public PostOffice( final String _configFilePath ) {
+        this( getConfig( _configFilePath ) );
+    }
+
+
+    private static Config getConfig( final String _configFilePath ) {
 
         if( isEmpty( _configFilePath ) ) throw new IllegalArgumentException( "Missing configuration file path" );
 
         // initialize our config file...
-        Config config = Config.fromJSONFile( _configFilePath );
+        return Config.fromJSONFile( _configFilePath );
+    }
 
-        name                = config.optString( "name"      );
-        String secretBase64 = config.optString( "secret"    );
-        mailboxQueueSize    = config.optInt   ( "queueSize" );
-        cpoHost             = config.optString( "cpoHost"   );
-        cpoPort             = config.optInt   ( "cpoPort"   );
+
+    public PostOffice( final Config _config ) {
+
+        if( isNull( _config ) ) throw new IllegalArgumentException( "No configuration" );
+
+        name                = _config.optString( "name"      );
+        String secretBase64 = _config.optString( "secret"    );
+        mailboxQueueSize    = _config.optInt   ( "queueSize" );
+        cpoHost             = _config.optString( "cpoHost"   );
+        cpoPort             = _config.optInt   ( "cpoPort"   );
 
         if( isEmpty( name ) || name.contains( "." ) ) throw new IllegalArgumentException( "Name is empty or contains a period (\".\")" );
         if( mailboxQueueSize < 1) throw new IllegalArgumentException( "Invalid maximum mailbox received message queue size: " + mailboxQueueSize );

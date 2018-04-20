@@ -1,39 +1,48 @@
-{ "configuration": {
-  "status": "error",
-  "name": "CPO",
-  "packages": "org.apache.logging.log4j.test",
-  "properties": {
-  },
-  "appenders": {
-    "Console": {
-      "name": "STDOUT",
-      "PatternLayout": { "pattern": "%d{yyyy/MM/dd HH:mm:ss.SSS} %-5p %20.20t %m%n" }
+{
+  "configuration": {
+    "status": "error",
+    "name": "CPO",
+    "packages": "org.apache.logging.log4j.test",
+    "properties": {
     },
-    "RollingFile": {
-      "name": "FILE",
-      "fileName": "logs/cpo.log",
-      "filePattern": "logs/cpo-%i.log.gz",
-      "PatternLayout": { "pattern": "%d{yyyy/MM/dd HH:mm:ss.SSS} %-5p %20.20t %m%n" },
-      "Policies": {
-        "SizeBasedTriggeringPolicy": {
-          "size": "10 MB"
+    "appenders": {
+      "Console": {
+        "name": "STDOUT",
+        "PatternLayout": {
+          "pattern": "%d{yyyy/MM/dd HH:mm:ss.SSS} %-5p %20.20t %m%n"
         }
       },
-      "DefaultRolloverStrategy": {
-        "max": 20
+      "RollingFile": {
+        "name": "FILE",
+        "fileName": "logs/cpo.log",
+        "filePattern": "logs/cpo-%i.log.gz",
+        "PatternLayout": {
+          "pattern": "%d{yyyy/MM/dd HH:mm:ss.SSS} %-5p %20.20t %m%n"
+        },
+        "Policies": {
+          "SizeBasedTriggeringPolicy": {
+            "size": "10 MB"
+          }
+        },
+        "DefaultRolloverStrategy": {
+          "max": 20
+        }
+      }
+    },
+    "loggers": {
+      "logger": {
+        "name": "com.dilatush",
+        "level": "INFO",
+        "AppenderRef": {
+          "ref": "FILE"
+        }
+      },
+      "root": {
+        "level": "INFO",
+        "AppenderRef": {
+          "ref": "STDOUT"
+        }
       }
     }
-  },
-  "loggers": {
-    "logger": {
-      "name": "com.dilatush",
-      "level": "INFO",
-      "AppenderRef": { "ref": "FILE" }
-    },
-    "root": {
-      "level": "INFO",
-      "AppenderRef": { "ref": "STDOUT" }
-    }
   }
-}
 }
