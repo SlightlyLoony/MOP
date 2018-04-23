@@ -122,7 +122,7 @@ public class MessageDeframer {
 
         // sanity checks...
         if( isNull( (Object) _bytes ) ) throw new IllegalArgumentException( "Missing bytes to append" );
-        if( _length > (buffer.capacity() - buffer.limit() ) ) throw new IllegalStateException( "Not enough capacity for bytes to add" );
+        if( _length > (buffer.capacity() - buffer.limit() ) ) throw new IllegalStateException( "Not enough capacity for bytes to add: " + _length );
 
         // remember our old position so we can put it back later...
         int pos = buffer.position();

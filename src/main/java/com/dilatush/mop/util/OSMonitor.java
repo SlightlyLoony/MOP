@@ -18,7 +18,7 @@ import static java.lang.Thread.sleep;
 public class OSMonitor {
 
     private static final Executor osInfoEx       = new Executor( "uname -mnrs" );
-    private static final Executor osxMemInfoEx   = new Executor( "sysctl hw.memsize vm.page_free_count vm.pagesize" );
+    private static final Executor osxMemInfoEx   = new Executor( "{ sysctl hw.memsize; vm_stat; }" );
     private static final Executor linuxMemInfoEx = new Executor( "free -b" );
     private static final Executor osxCPUInfoEx   = new Executor( "iostat -C" );
     private static final Executor linuxCPUInfoEx = new Executor( "cat /proc/stat" );
@@ -26,7 +26,7 @@ public class OSMonitor {
     private static final Pattern osInfoPat
             = Pattern.compile( "(\\S+)\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)\\s+" );
     private static final Pattern osxMemInfoPat
-            = Pattern.compile( ".*\\.memsize:\\s+(\\d+).*\\.page_free_count:\\s+(\\d+).*\\.pagesize:\\s+(\\d+)\\s+", Pattern.DOTALL );
+            = Pattern.compile( ".*\\.memsize:\\s+(\\d+).*page size of (\\d+).* active:\\s+(\\d+).* wired down:\\s++(\\d+).*", Pattern.DOTALL );
     private static final Pattern linuxMemInfoPat
             = Pattern.compile( ".*Mem:\\s+(\\d+).*buffers/cache:\\s+(\\d+).*Swap:\\s+(\\d+).*", Pattern.DOTALL );
     private static final Pattern osxCPUInfoPat
@@ -131,13 +131,15 @@ public class OSMonitor {
         }
         Matcher mat = osxMemInfoPat.matcher( result );
         if( mat.matches() ) {
-            int pageSize = Integer.parseInt( mat.group( 3 ) );
+            int pageSize = Integer.parseInt( mat.group( 2 ) );
+            long active = pageSize * Long.parseLong( mat.group( 3 ) );
+            long wired = pageSize * Long.parseLong( mat.group( 4 ) );
             totalMemory = Long.parseLong( mat.group( 1 ) );
-            freeMemory = pageSize * Long.parseLong( mat.group( 2 ) );
-            usedMemory = totalMemory - freeMemory;
+            usedMemory = active + wired;
+            freeMemory = totalMemory - usedMemory;
         }
         else {
-            errorMessage = "Unrecognized sysctl output: " + result;
+            errorMessage = "Unrecognized sysctl or vm_stat output: " + result;
             return;
         }
 
