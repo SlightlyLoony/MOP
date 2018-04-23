@@ -18,7 +18,8 @@ import static java.lang.Thread.sleep;
 public class OSMonitor {
 
     private static final Executor osInfoEx       = new Executor( "uname -mnrs" );
-    private static final Executor osxMemInfoEx   = new Executor( "{ sysctl hw.memsize; vm_stat; }" );
+    private static final Executor osxMemInfoEx1   = new Executor( "sysctl hw.memsize" );
+    private static final Executor osxMemInfoEx2   = new Executor( "vm_stat" );
     private static final Executor linuxMemInfoEx = new Executor( "free -b" );
     private static final Executor osxCPUInfoEx   = new Executor( "iostat -C" );
     private static final Executor linuxCPUInfoEx = new Executor( "cat /proc/stat" );
@@ -124,9 +125,9 @@ public class OSMonitor {
     private void runOSX() {
 
         // find our total memory, free, and used...
-        String result = osxMemInfoEx.run();
+        String result = osxMemInfoEx1.run() + osxMemInfoEx2.run();
         if( isEmpty( result ) ) {
-            errorMessage = "Command sysctl failed";
+            errorMessage = "Command sysctl or vm_stat failed";
             return;
         }
         Matcher mat = osxMemInfoPat.matcher( result );
