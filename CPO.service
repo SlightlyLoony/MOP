@@ -1,0 +1,22 @@
+[Unit]
+Description=Central Post Office (for Message-Oriented Programming)
+After=syslog.target
+
+[Service]
+User=cpo
+Type=simple
+
+# The configuration file application.properties should be here:
+
+#change this to your workspace
+WorkingDirectory=/apps/cpo
+
+#path to executable.
+ExecStart=/apps/cpo/runCPO.sh
+
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
