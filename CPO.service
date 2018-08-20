@@ -15,8 +15,7 @@ WorkingDirectory=/apps/cpo
 ExecStart=/apps/cpo/runCPO.sh
 
 TimeoutStopSec=10
-Restart=on-failure
-RestartSec=5
+Restart=no
 
 [Install]
 WantedBy=multi-user.target
