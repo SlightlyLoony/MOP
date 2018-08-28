@@ -35,18 +35,22 @@ public class CPOManager {
     private static PostOffice po;
     private static ManagerActor ma;
     private static boolean quit;
+    private static boolean monitor;
     private static Scanner scanner;
     private static volatile boolean wait;
 
     public static void main( final String[] _args ) throws InterruptedException {
 
-        // configure the logger...
+        // configure the logger (no file)...
         configureLogger();
 
         // get the path to our configuration file...
         String config = "CPOManager.json";   // the default...
         if( isNotNull( (Object) _args ) && (_args.length > 0) )
             config = _args[0];
+
+        // if we have "monitor" as the second argument, record that fact...
+        monitor = (_args.length >= 2) && ("monitor".equals( _args[1] ) );
 
         // if the file doesn't exist, bail out with an error...
         if( !new File( config ).exists() ) {
@@ -59,6 +63,12 @@ public class CPOManager {
 
         // get our actor...
         ma = new ManagerActor( po );
+
+        // if we're monitoring, get a message, wait for the response, and exit...
+        if( monitor ) {
+            ma.getStatus();
+            System.exit( 0 );
+        }
 
         // now loop, printing the menu and getting a command, until the user says "quit"...
         scanner = new Scanner( System.in );
@@ -322,13 +332,37 @@ public class CPOManager {
 
     private static class ManagerActor extends Actor {
 
+        protected static volatile boolean gotStatus;
+
         protected ManagerActor( final PostOffice _po ) {
             super( _po, "manager" );
-            registerFQDirectMessageHandler( this::statusHandler,  "central.po", "manage", "status"  );
-            registerFQDirectMessageHandler( this::writeHandler,   "central.po", "manage", "write"   );
-            registerFQDirectMessageHandler( this::addHandler,     "central.po", "manage", "add"     );
-            registerFQDirectMessageHandler( this::deleteHandler,  "central.po", "manage", "delete"  );
-            registerFQDirectMessageHandler( this::monitorHandler, "central.po", "manage", "monitor" );
+            registerFQDirectMessageHandler( this::statusHandler,    "central.po", "manage", "status"  );
+            registerFQDirectMessageHandler( this::writeHandler,     "central.po", "manage", "write"   );
+            registerFQDirectMessageHandler( this::addHandler,       "central.po", "manage", "add"     );
+            registerFQDirectMessageHandler( this::deleteHandler,    "central.po", "manage", "delete"  );
+            registerFQDirectMessageHandler( this::monitorHandler,   "central.po", "manage", "monitor" );
+        }
+
+
+        private void getStatus() {
+
+            // request our CPO's status...
+            gotStatus = false;
+            Message msg = mailbox.createDirectMessage( "central.po", "manage.status", false );
+            mailbox.send( msg );
+
+            // now wait up to one second until we get the response...
+            int count = 0;
+            while( !gotStatus && (count < 100) ) {
+                count++;
+                try {
+                    sleep( 10 );
+                }
+                catch( InterruptedException _e ) {
+                    // naught to do...
+                }
+            }
+            print( gotStatus ? "OK" : "DEAD" );
         }
 
 
@@ -411,6 +445,11 @@ public class CPOManager {
 
 
         protected void statusHandler( final Message _message ) {
+
+            if( monitor ) {
+                gotStatus = true;
+                return;
+            }
 
             DecimalFormat df = new DecimalFormat( "#,##0.000" );
 
