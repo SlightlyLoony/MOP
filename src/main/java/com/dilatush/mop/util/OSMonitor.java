@@ -29,7 +29,7 @@ public class OSMonitor {
     private static final Pattern osxMemInfoPat
             = Pattern.compile( ".*\\.memsize:\\s+(\\d+).*page size of (\\d+).* active:\\s+(\\d+).* wired down:\\s++(\\d+).*", Pattern.DOTALL );
     private static final Pattern linuxMemInfoPat
-            = Pattern.compile( ".*Mem:\\s+(\\d+).*buffers/cache:\\s+(\\d+).*Swap:\\s+(\\d+).*", Pattern.DOTALL );
+            = Pattern.compile( ".*Mem:\\s+(\\d+)\\s+(\\d+)\\s+\\d+\\s+\\d+\\s+\\d+.*Swap:\\s+(\\d+)\\s+(\\d+).*", Pattern.DOTALL );
     private static final Pattern osxCPUInfoPat
             = Pattern.compile( ".*(?:(?:[\\d.]+)\\s+){6}([\\d.]+)\\s+.*", Pattern.DOTALL );
     private static final Pattern linuxCPUInfoPat
@@ -176,9 +176,10 @@ public class OSMonitor {
         if( mat.matches() ) {
             long total = Long.parseLong( mat.group( 1 ) );
             long used = Long.parseLong( mat.group( 2 ) );
-            long swap = Long.parseLong( mat.group( 3 ) );
-            totalMemory = total + swap;
-            usedMemory = used + swap;
+            long swap_total = Long.parseLong( mat.group( 3 ) );
+            long swap_used = Long.parseLong( mat.group( 4 ) );
+            totalMemory = total + swap_total;
+            usedMemory = used + swap_used;
             freeMemory = totalMemory - usedMemory;
         }
         else {
@@ -225,5 +226,21 @@ public class OSMonitor {
             errorMessage = "Unrecognized cat output: " + result;
             return null;
         }
+    }
+
+
+    public static void main( String[] args ) {
+        String result ="               total        used        free      shared  buff/cache   available\nMem:      968204288    71880704    77275136    18501632   819048448   810717184\nSwap:     104853504      184320   104669184\n";
+        Matcher mat = linuxMemInfoPat.matcher( result );
+        if( mat.matches() ) {
+            long total = Long.parseLong( mat.group( 1 ) );
+            long used = Long.parseLong( mat.group( 2 ) );
+            long swap = Long.parseLong( mat.group( 3 ) );
+            mat.hashCode();
+        }
+        else {
+            mat.hashCode();
+        }
+
     }
 }
