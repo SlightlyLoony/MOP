@@ -1,6 +1,8 @@
 package com.dilatush.mop;
 
 import com.dilatush.util.Base64;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.nio.ByteBuffer;
 
@@ -15,6 +17,8 @@ import static com.dilatush.util.General.isNull;
  * @author Tom Dilatush  tom@dilatush.com
  */
 public class MessageDeframer {
+
+    private static final Logger LOG = LogManager.getLogger();
 
     private static final byte OPEN = '[';
     private static final byte CLOSE = ']';
@@ -37,6 +41,16 @@ public class MessageDeframer {
         maxMessageSize = _maxMessageSize;
         bufferSize = 2 * (maxMessageSize + 6 + 4);  // size buffer to hold two complete serialized messages of maximum size...
         buffer = ByteBuffer.allocate( bufferSize );
+        frameOpenDetected = false;
+        frameLength = 0;
+        buffer.limit( 0 );  // this marks our buffer as empty...
+    }
+
+
+    /**
+     * Clears all bytes from the buffer, as if just created.
+     */
+    private void clear() {
         frameOpenDetected = false;
         frameLength = 0;
         buffer.limit( 0 );  // this marks our buffer as empty...
@@ -77,7 +91,11 @@ public class MessageDeframer {
 
         // sanity checks...
         if( isNull( _buffer ) ) throw new IllegalArgumentException( "Missing buffer to append from" );
-        if( _buffer.limit() > (buffer.capacity() - buffer.limit() ) ) throw new IllegalStateException( "Not enough capacity for bytes to add" );
+        if( _buffer.limit() > (buffer.capacity() - buffer.limit() ) ) {
+            LOG.warn( "Not enough capacity for bytes to add: " + _buffer.limit() + "; throwing away inbound bytes" );
+            clear();
+            return;
+        }
 
         // remember our old position so we can put it back later...
         int pos = buffer.position();
@@ -122,7 +140,11 @@ public class MessageDeframer {
 
         // sanity checks...
         if( isNull( (Object) _bytes ) ) throw new IllegalArgumentException( "Missing bytes to append" );
-        if( _length > (buffer.capacity() - buffer.limit() ) ) throw new IllegalStateException( "Not enough capacity for bytes to add: " + _length );
+        if( _length > (buffer.capacity() - buffer.limit() ) ) {
+            LOG.warn( "Not enough capacity for bytes to add: " + _length + "; throwing away inbound bytes" );
+            clear();
+            return;
+        }
 
         // remember our old position so we can put it back later...
         int pos = buffer.position();
