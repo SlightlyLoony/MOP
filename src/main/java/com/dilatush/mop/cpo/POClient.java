@@ -2,14 +2,13 @@ package com.dilatush.mop.cpo;
 
 import com.dilatush.mop.Message;
 import com.dilatush.util.Base64;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNotNull;
 import static com.dilatush.util.General.isNull;
@@ -19,7 +18,7 @@ import static com.dilatush.util.General.isNull;
  */
 /* package */ class POClient {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     private static final int OUTGOING_QUEUE_SIZE = 100;  // number of messages that can be held in outgoing queue...
 
@@ -65,11 +64,11 @@ import static com.dilatush.util.General.isNull;
 
         // if we're called without a message, log the fact and do nothing...
         if( isNull( _message ) ) {
-            LOG.error( "Attempt made to deliver null message" );
+            LOGGER.severe( "Attempt made to deliver null message" );
             return;
         }
 
-        LOG.debug( "Sending: " + _message.toJSON() );
+        LOGGER.finest( "Sending: " + _message.toJSON() );
 
         // serialize our message and add it to our outgoing buffer...
         byte[] serializedBytes = _message.serialize();

@@ -1,12 +1,11 @@
 package com.dilatush.mop;
 
 import com.dilatush.mop.cpo.CentralPostOffice;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNotNull;
 import static com.dilatush.util.General.isNull;
@@ -19,14 +18,10 @@ import static java.lang.Thread.sleep;
  */
 public class TestCommsErrors {
 
-    private static Logger LOG;
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
 
     public static void main( String[] args ) throws InterruptedException {
-
-        // set up our console logger...
-        System.setProperty( "log4j.configurationFile", "TestLog.json" );
-        LOG = LogManager.getLogger();
 
         // create our central post office and start it up...
         CentralPostOffice cpo = new CentralPostOffice( "CentralPostOfficeConfig.json" );
@@ -58,7 +53,7 @@ public class TestCommsErrors {
         // wait until both post offices have connected...
         while( !test1.isConnected() || !test2.isConnected() )
             sleep( 10 );
-        LOG.info( "test1 and test2 connected" );
+        LOGGER.info( "test1 and test2 connected" );
 
         // start our tests...
         actor1.start();
@@ -114,7 +109,7 @@ public class TestCommsErrors {
                     ? targetPO.name + " type: " + type
                     : "CPO type: " + type + ((isNotNull( poName )) ? " on PO " + poName : "");
 
-            LOG.info( "TEST: " + testType );
+            LOGGER.info( "TEST: " + testType );
 
             if( isNotNull( targetPO ) ) {
                 switch( type ) {
@@ -212,7 +207,7 @@ public class TestCommsErrors {
 
                 else if( seq <= lastSequenceNumber.get() ) {
                     // this is a repeated message; ignore it..
-                    LOG.info( "Repeated message received, sequence: " + seq );
+                    LOGGER.info( "Repeated message received, sequence: " + seq );
                 }
 
                 else {

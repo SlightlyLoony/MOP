@@ -6,13 +6,8 @@
         <element id="file-copy" path="$PROJECT_DIR$/src/main/cpoResources/META-INF/MANIFEST.MF" />
       </element>
       <element id="module-output" name="MOP" />
-      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/apache/logging/log4j/log4j-1.2-api/2.11.0/log4j-1.2-api-2.11.0.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/apache/logging/log4j/log4j-api/2.11.0/log4j-api-2.11.0.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/apache/logging/log4j/log4j-core/2.11.0/log4j-core-2.11.0.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/apache/logging/log4j/log4j-slf4j-impl/2.11.0/log4j-slf4j-impl-2.11.0.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/json/json/20180130/json-20180130.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/slf4j/slf4j-api/1.8.0-alpha2/slf4j-api-1.8.0-alpha2.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$PROJECT_DIR$/../Util/out/artifacts/Util_jar/Util.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../Util/out/artifacts/Util/Util.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/libs/json-20180813.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>

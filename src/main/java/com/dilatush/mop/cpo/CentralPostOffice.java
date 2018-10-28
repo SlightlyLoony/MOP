@@ -4,8 +4,6 @@ import com.dilatush.mop.Message;
 import com.dilatush.mop.util.JVMMonitor;
 import com.dilatush.mop.util.OSMonitor;
 import com.dilatush.util.Base64;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.nio.channels.SelectionKey;
 import java.time.Duration;
@@ -16,6 +14,8 @@ import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNotNull;
 import static com.dilatush.util.General.isNull;
@@ -43,7 +43,7 @@ public class CentralPostOffice {
             .ofPattern( "YYYY/MM/dd HH:mm:ss.SSS zzzz" )
             .withZone( ZoneId.systemDefault() );
 
-    private static final Logger LOG                    = LogManager.getLogger();
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
     private static final int    PONG_CHECK_INTERVAL_MS = 100;
     private static final int    RXBYTES_QUEUE_SIZE     = 100;       // number of blocks of bytes that can be in queue at once...
 
@@ -102,7 +102,7 @@ public class CentralPostOffice {
      */
     public void shutdown() {
 
-        LOG.info( "Central Post Office is shutting down" );
+        LOGGER.info( "Central Post Office is shutting down" );
 
         // let all our threads know we're shutting down...
         shutdown = true;
@@ -117,7 +117,7 @@ public class CentralPostOffice {
         handler.close();
         handler.interrupt();
 
-        LOG.info( "Central post office has shutdown" );
+        LOGGER.info( "Central post office has shutdown" );
     }
 
 
@@ -160,7 +160,7 @@ public class CentralPostOffice {
 
             // otherwise we've got an unknown message type...
             else {
-                LOG.error( "CPO received unknown publish message source and type: " + key );
+                LOGGER.severe( "CPO received unknown publish message source and type: " + key );
             }
         }
 
@@ -188,7 +188,7 @@ public class CentralPostOffice {
                     case PONG:      handlePong(    _message                    ); break;
 
                     default:
-                        LOG.error( "Unknown message type received: " + _message.type );
+                        LOGGER.severe( "Unknown message type received: " + _message.type );
                 }
                 return;
             }
@@ -211,13 +211,13 @@ public class CentralPostOffice {
             else
                 client.deliver( _message );
         }
-        else LOG.error( "Can't route direct message to unknown client post office: " + _po );
+        else LOGGER.severe( "Can't route direct message to unknown client post office: " + _po );
     }
 
 
     private void handleMonitor( final Message _message ) {
 
-        LOG.info( "Received monitor request from: " + _message.from );
+        LOGGER.info( "Received monitor request from: " + _message.from );
 
         // run the monitors in another thread so that we don't block this one (monitoring can take up to a second or two)...
         monitors = new RunMonitors( _message );
@@ -232,7 +232,7 @@ public class CentralPostOffice {
         private RunMonitors( final Message _message ) {
             client = clients.get( _message.fromPO );
             if( isNull( client ) ) {
-                LOG.error( "Received manage.monitor message from unknown post office: " + _message.fromPO );
+                LOGGER.severe( "Received manage.monitor message from unknown post office: " + _message.fromPO );
                 monitors = null;  // kill our reference...
                 return;
             }
@@ -274,13 +274,13 @@ public class CentralPostOffice {
         else {
             destinations.remove( _message.getString( "requestor" ) );
         }
-        LOG.info( "Snooping on " + (isSubscribe ? "add" : "remove") + " subscription to: " + key + " from " + _message.getString( "requestor" ) );
+        LOGGER.info( "Snooping on " + (isSubscribe ? "add" : "remove") + " subscription to: " + key + " from " + _message.getString( "requestor" ) );
     }
 
 
     private void handlePong( final Message _message ) {
 
-        LOG.info( "Received pong from: " + _message.from );
+        LOGGER.info( "Received pong from: " + _message.from );
 
         // get the connection info (inserted by POConnection)...
         String connectionName = _message.optString( POConnection.CONNECTION_NAME, null );
@@ -288,7 +288,7 @@ public class CentralPostOffice {
 
         // if we didn't get a connection, just log it and leave...
         if( isNull( connection ) ) {
-            LOG.info( "Connection not found: " + connectionName );
+            LOGGER.info( "Connection not found: " + connectionName );
             return;
         }
 
@@ -315,7 +315,7 @@ public class CentralPostOffice {
         Message msg = new Message( "central.po", _message.from, "manage.delete", getNextID(), null, false );
         manager.deliver( msg );
 
-        LOG.info( "Deleted post office \"" + po + "\" from configured clients" );
+        LOGGER.info( "Deleted post office \"" + po + "\" from configured clients" );
     }
 
 
@@ -340,7 +340,7 @@ public class CentralPostOffice {
         Message msg = new Message( "central.po", _message.from, "manage.add", getNextID(), null, false );
         manager.deliver( msg );
 
-        LOG.info( "Added post office \"" + po + "\" to configured clients" );
+        LOGGER.info( "Added post office \"" + po + "\" to configured clients" );
     }
 
 
@@ -357,7 +357,7 @@ public class CentralPostOffice {
         Message msg = new Message( "central.po", _message.from, "manage.write", getNextID(), null, false );
         manager.deliver( msg );
 
-        LOG.info( "Wrote configuration file" );
+        LOGGER.info( "Wrote configuration file" );
     }
 
 
@@ -409,7 +409,7 @@ public class CentralPostOffice {
         // now send the message back to the manager...
         manager.deliver( msg );
 
-        LOG.info( "Sent Central Post Office status to " + _message.from );
+        LOGGER.info( "Sent Central Post Office status to " + _message.from );
     }
 
 
@@ -425,14 +425,14 @@ public class CentralPostOffice {
 
         // if we didn't get a connection, just log it and leave...
         if( isNull( connection ) ) {
-            LOG.info( "Connection not found: " + connectionName );
+            LOGGER.info( "Connection not found: " + connectionName );
             return;
         }
 
         // if we don't know about this client post office, close the connection and bail...
         if( isNull( client ) ) {
             closeConnection( connection );
-            LOG.info( "Connection attempted from unknown post office: " + poName );
+            LOGGER.info( "Connection attempted from unknown post office: " + poName );
             return;
         }
 
@@ -443,24 +443,24 @@ public class CentralPostOffice {
         // if it doesn't match, so we have an evil impostor (or something went horribly wrong) - shut down the connection and log it...
         if( !authenticator.verify( rxAuthenticator ) ) {
             closeConnection( connection );
-            LOG.error( "Connection attempted with invalid authenticator, from post office: " + poName );
+            LOGGER.severe( "Connection attempted with invalid authenticator, from post office: " + poName );
         }
 
         // if there's already a different connection associated with this client, close it, and log it, because it really shouldn't be happening...
         if( isNotNull( client.connection ) && (client.connection != connection) ) {
             closeConnection( client.connection );
-            LOG.info( "Client already had a different connection associated with it, which is now closed" );
+            LOGGER.info( "Client already had a different connection associated with it, which is now closed" );
         }
 
         // if this connection is already associated, log the anomaly but do nothing else...
         if( client.connection == connection ) {
-            LOG.info( "Got connect message for post office that's already connected: " + poName );
+            LOGGER.info( "Got connect message for post office that's already connected: " + poName );
             return;
         }
 
         // if we make here, then all looks good -- time to associate our new connection with this client...
         associate( connection, client );
-        LOG.info( "Associated post office " + client.name + " with connection " + connection.name );
+        LOGGER.info( "Associated post office " + client.name + " with connection " + connection.name );
 
         // now send the appropriate response back to the client post office...
         String fromClient = _message.from.substring( 0, _message.from.indexOf( '.' ) );
@@ -484,7 +484,7 @@ public class CentralPostOffice {
     // to the post office that just connected.
     private void handleSubscriptionRefresh( final POClient _client ) {
 
-        LOG.info( "Refreshing subscriptions for post office \"" + _client.name + "\"" );
+        LOGGER.info( "Refreshing subscriptions for post office \"" + _client.name + "\"" );
 
         // scan all subscriptions, looking for those that are sourced on the specified client...
         String prefix = _client.name + ".";   // the key prefix indicating subscriptions we care about...
@@ -598,7 +598,7 @@ public class CentralPostOffice {
                 catch( Exception _e ) {
 
                     // log this, so we know what happened...
-                    LOG.error( "Exception below escaped from rx bytes handler; ignoring", _e );
+                    LOGGER.log( Level.SEVERE, "Exception below escaped from rx bytes handler; ignoring", _e );
                 }
             }
         }
@@ -613,7 +613,7 @@ public class CentralPostOffice {
         @Override
         public void run() {
 
-            LOG.info( "Sending pings" );
+            LOGGER.info( "Sending pings" );
             Set<Map.Entry<String, POClient>> clientSet = clients.entrySet();
             for( Map.Entry<String, POClient> clientEntry : clientSet ) {
                 POClient client = clientEntry.getValue();
@@ -644,7 +644,7 @@ public class CentralPostOffice {
 
                     // if it's been 150% of the ping interval since we got a pong, close the connection and let it reconnect...
                     if( pongTime >= (((config.pingIntervalMS << 1) + config.pingIntervalMS) >> 1 ) ) {
-                        LOG.error( "Failed to receive pong in time on " + connection.name );
+                        LOGGER.severe( "Failed to receive pong in time on " + connection.name );
                         closeConnection( connection );
                     }
                 }

@@ -2,12 +2,11 @@ package com.dilatush.mop;
 
 import com.dilatush.util.Base64;
 import com.dilatush.util.Config;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
 
 import static com.dilatush.util.Base64.encode;
 import static com.dilatush.util.General.isNotNull;
@@ -22,7 +21,7 @@ import static com.dilatush.util.Strings.isEmpty;
  */
 public class PostOffice extends Thread {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     public  final static String CPO_MAILBOX_NAME = "[({CPO})]";
 
@@ -136,7 +135,7 @@ public class PostOffice extends Thread {
         // kill our mail receiver...
         mailReceiver.interrupt();
 
-        LOG.info( "Post office " + name + " has shut down" );
+        LOGGER.info( "Post office " + name + " has shut down" );
     }
 
 
@@ -450,13 +449,13 @@ public class PostOffice extends Thread {
                 try {
                     // grab a message from our mailbox...
                     Message msg = poMailbox.take();
-                    LOG.debug( "Received: " + msg.toString() );
+                    LOGGER.finest( "Received: " + msg.toString() );
 
                     // decide what to do with it...
                     switch( msg.type ) {
                         case "manage.subscribe":   handleSubscriptions( msg, true  ); break;
                         case "manage.unsubscribe": handleSubscriptions( msg, false ); break;
-                        default: LOG.error( "Unknown po message type received: " + msg.type );
+                        default: LOGGER.severe( "Unknown po message type received: " + msg.type );
                     }
                 }
                 catch( InterruptedException _e ) {
@@ -471,7 +470,7 @@ public class PostOffice extends Thread {
             // if it's a reply, clear the waiter...
             if( isNotNull( _message.reply ) ) {
                 specialReplyWaiters.remove( _message.reply );
-                LOG.debug( "Removing special reply waiter: " + _message.reply );
+                LOGGER.finest( "Removing special reply waiter: " + _message.reply );
             }
 
             // otherwise, it's actually a subscribe, so do it...

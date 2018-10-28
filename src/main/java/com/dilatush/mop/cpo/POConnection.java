@@ -2,8 +2,6 @@ package com.dilatush.mop.cpo;
 
 import com.dilatush.mop.Message;
 import com.dilatush.mop.MessageDeframer;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -11,6 +9,8 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNotNull;
 import static com.dilatush.util.General.isNull;
@@ -22,7 +22,7 @@ import static com.dilatush.util.General.isNull;
  */
 public class POConnection {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     public static final String CONNECTION_NAME = "-={([connectionName])}=-";   // name of attribute we add to provide connection name to router...
 
@@ -71,7 +71,7 @@ public class POConnection {
                 // try to extract a message...
                 // TODO: handle JSON decoding errors...
                 Message msg = new Message( new String( frame, StandardCharsets.UTF_8 ) );
-                LOG.debug( "Received: " + msg.toString() );
+                LOGGER.finest( "Received: " + msg.toString() );
                 if( isNotNull( client ) )
                     client.rxMessages.incrementAndGet();
 
@@ -84,7 +84,7 @@ public class POConnection {
             }
             catch( Exception _e ) {
                 // getting here means we had a problem decoding the received message - we log and ignore...
-                LOG.error( "Could not decode received message: " + new String( frame, StandardCharsets.UTF_8 ), _e );
+                LOGGER.log( Level.SEVERE, "Could not decode received message: " + new String( frame, StandardCharsets.UTF_8 ), _e );
             }
         }
     }

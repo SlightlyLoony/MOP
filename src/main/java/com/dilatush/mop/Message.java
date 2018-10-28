@@ -3,8 +3,7 @@ package com.dilatush.mop;
 import com.dilatush.util.Base64;
 import com.dilatush.util.General;
 import com.dilatush.util.HJSONObject;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import com.dilatush.util.Strings;
 import org.json.JSONObject;
 
 import javax.crypto.Cipher;
@@ -14,8 +13,9 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import static com.dilatush.util.Strings.isEmpty;
 import static com.dilatush.util.Strings.isNonEmpty;
 
 /**
@@ -35,7 +35,7 @@ import static com.dilatush.util.Strings.isNonEmpty;
  */
 public class Message extends HJSONObject {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     public final static String ENVELOPE_NAME = "-={([env])}=-";  // chosen to be descriptive AND exceedingly unlikely to suffer from collision...
     public final static String FROM_ATTR     = "from";
@@ -111,7 +111,7 @@ public class Message extends HJSONObject {
 
 
     private static String getPrefix( final String _dottedValue ) {
-        if( isEmpty( _dottedValue ) ) return "";
+        if( Strings.isEmpty( _dottedValue ) ) return "";
         if( !_dottedValue.contains( "." ) ) return _dottedValue;
         return _dottedValue.substring( 0, _dottedValue.lastIndexOf( '.' ) );
     }
@@ -441,7 +441,7 @@ public class Message extends HJSONObject {
             return result;
         }
         catch( UnsupportedEncodingException _e ) {
-            LOG.error( "UTF8 is unsupported", _e );   // obviously, this should never happen...
+            LOGGER.log( Level.SEVERE, "UTF8 is unsupported", _e );   // obviously, this should never happen...
             throw new IllegalStateException( "UTF8 is unsupported" );
         }
     }
@@ -449,8 +449,8 @@ public class Message extends HJSONObject {
 
     // Throws an IllegalArgumentException if the specified parameters are invalid; otherwise, does nothing.
     private void validate( final String _from, final String _type, final String _id ) {
-        if( isEmpty( _from ) )                     throw new IllegalArgumentException( "Message missing valid 'from' attribute" );
-        if( isEmpty( _from ) && isEmpty( _type ) ) throw new IllegalArgumentException( "Message missing both 'to' and 'type' attributes" );
-        if( isEmpty( _id ) )                       throw new IllegalArgumentException( "Message missing valid 'id' attribute" );
+        if( Strings.isEmpty( _from ) )                             throw new IllegalArgumentException( "Message missing valid 'from' attribute" );
+        if( Strings.isEmpty( _from ) && Strings.isEmpty( _type ) ) throw new IllegalArgumentException( "Message missing both 'to' and 'type' attributes" );
+        if( Strings.isEmpty( _id ) )                               throw new IllegalArgumentException( "Message missing valid 'id' attribute" );
     }
 }

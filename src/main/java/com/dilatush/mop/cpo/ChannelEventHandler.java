@@ -1,8 +1,5 @@
 package com.dilatush.mop.cpo;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -12,6 +9,8 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNotNull;
 import static com.dilatush.util.General.isNull;
@@ -25,7 +24,7 @@ import static com.dilatush.util.General.isNull;
  */
 /* package */ class ChannelEventHandler extends Thread {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     /* package */ Selector            selector;
     private       ServerSocketChannel channel;
@@ -48,7 +47,7 @@ import static com.dilatush.util.General.isNull;
      */
     /* package */ synchronized void open() {
 
-        LOG.info( "Opening server channel socket" );
+        LOGGER.info( "Opening server channel socket" );
 
         try {
             // initialize the server's basic objects...
@@ -94,7 +93,7 @@ import static com.dilatush.util.General.isNull;
             catch( Exception _e ) {
 
                 // log this, so we know what happened...
-                LOG.error( "Exception escaped from channel event handler; ignoring", _e );
+                LOGGER.log( Level.SEVERE, "Exception escaped from channel event handler; ignoring", _e );
             }
         }
     }
@@ -127,7 +126,7 @@ import static com.dilatush.util.General.isNull;
         }
         catch( IOException _e ) {
             // we're not sure what could cause this exception, but we suspect whatever it is must be fatal...
-            LOG.error( "Fatal exception during selector.select():", _e );
+            LOGGER.log( Level.SEVERE, "Fatal exception during selector.select():", _e );
             interrupt();
         }
     }
@@ -192,7 +191,7 @@ import static com.dilatush.util.General.isNull;
 
             // if we get an exception here, then our channel.accept() must have failed for some reason...
             // this is before we have any state on the connection, so we'll just make sure the socket is disconnected, log it, and leave...
-            LOG.error( "Exception occurred while accepting a connection", _e );
+            LOGGER.log( Level.SEVERE, "Exception occurred while accepting a connection", _e );
             if( client != null ) try { client.close(); } catch( IOException _e1 ) { /* naught to do here */ }
         }
     }
@@ -293,7 +292,7 @@ import static com.dilatush.util.General.isNull;
     // We get here if the select loop detected the server socket being closed...
     private void handleServerSocketClosed() {
 
-        LOG.info( "Detected closed server channel socket" );
+        LOGGER.info( "Detected closed server channel socket" );
 
         // then we reopen the channel socket, if we're not in shutdown mode...
         if( !cpo.shutdown ) open();

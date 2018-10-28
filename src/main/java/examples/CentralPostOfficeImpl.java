@@ -1,10 +1,9 @@
 package examples;
 
 import com.dilatush.mop.cpo.CentralPostOffice;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.File;
+import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNotNull;
 import static java.lang.Thread.sleep;
@@ -20,7 +19,7 @@ import static java.lang.Thread.sleep;
  */
 public class CentralPostOfficeImpl {
 
-    private static Logger LOG;
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     public static void main( final String[] _args ) throws InterruptedException {
 
@@ -33,18 +32,6 @@ public class CentralPostOfficeImpl {
             System.out.println( "CPO configuration file " + config + " does not exist!" );
             return;
         }
-
-        // the logger configuration file...
-        String logger = "CPOLog.json";
-        if( isNotNull( (Object) _args ) && (_args.length > 1) ) logger = _args[1];
-        if( !new File( config ).exists() ) {
-            System.out.println( "CPO log configuration file " + logger + " does not exist!" );
-            return;
-        }
-
-        // set up our logger...
-        System.setProperty( "log4j.configurationFile", logger );
-        LOG = LogManager.getLogger();
 
         // now we start up our central post office...
         CentralPostOffice cpo = new CentralPostOffice( config );

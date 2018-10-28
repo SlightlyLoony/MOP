@@ -2,8 +2,6 @@ package com.dilatush.mop;
 
 import com.dilatush.mop.cpo.Authenticator;
 import com.dilatush.util.Base64;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,6 +15,8 @@ import java.time.Instant;
 import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNotNull;
 import static com.dilatush.util.General.isNull;
@@ -27,7 +27,7 @@ import static java.lang.Thread.sleep;
  */
 public class CPOConnection {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     private static final int CPO_CONNECT_TIMEOUT_MS   = 5000;
     private static final int MAX_OUTGOING_QUEUE_MSGS  = 100;
@@ -219,14 +219,14 @@ public class CPOConnection {
         if( reconnectScheduled ) return;
         reconnectScheduled = true;
 
-        LOG.info( _msg, _throwable );
+        LOGGER.log( Level.INFO, _msg, _throwable );
         connected = false;
 
         // make sure the socket really is closed and nulled...
         if( isNotNull( socket ) ) {
             if( !socket.isClosed() ) {
                 try {
-                    LOG.debug( "Closing socket" );
+                    LOGGER.finest( "Closing socket" );
                     socket.close();
                 }
                 catch( IOException _e ) {
@@ -252,7 +252,7 @@ public class CPOConnection {
         writer = null;
 
         // schedule an attempt to connect in a half second...
-        LOG.info( "Scheduling reconnection in 500 ms" );
+        LOGGER.info( "Scheduling reconnection in 500 ms" );
         po.timer.schedule( new Connector(), 500 );
     }
 
@@ -339,7 +339,7 @@ public class CPOConnection {
                     }
                     catch( IOException _e ) {
 
-                        LOG.error( "Problem when attempting to connect; will try again", _e );
+                        LOGGER.log( Level.SEVERE, "Problem when attempting to connect; will try again", _e );
 
                         // wait a bit and try again...
                         sleep( 500 );
@@ -361,11 +361,11 @@ public class CPOConnection {
                 Message connectMsg = new Message( from, "central.po", type, po.getNextID(), null, false );
                 Authenticator auth = new Authenticator( secret, po.name, connectMsg.id );
                 connectMsg.put( "authenticator", Base64.encode( auth.getAuthenticator() ) );
-                LOG.debug( "Sending: " + connectMsg.toString() );
+                LOGGER.finest( "Sending: " + connectMsg.toString() );
                 deliverNext( connectMsg );
                 reconnectScheduled = false;
 
-                LOG.debug( "TCP connected to CPO" );
+                LOGGER.finest( "TCP connected to CPO" );
             }
             catch( InterruptedException _e ) {
                 // naught to do; just leave...
@@ -468,11 +468,11 @@ public class CPOConnection {
 
         private void handlePing() {
 
-            LOG.debug( "Received ping" );
+            LOGGER.finest( "Received ping" );
             timeSinceLastPingMS.set( 0 );
 
             // send a pong...
-            LOG.debug( "Sending pong" );
+            LOGGER.finest( "Sending pong" );
             Message message = new Message( po.name + ".po", "central.po", "manage.pong", po.getNextID(), null, false );
             deliver( message );
         }
@@ -482,7 +482,7 @@ public class CPOConnection {
             maxMessageSize = _message.optInt( "maxMessageSize", maxMessageSize );
             pingIntervalMS = _message.getLong( "pingIntervalMS" );
             buffer = new byte[(maxMessageSize + 20) * 2];
-            LOG.info( po.name + " connected to cpo with max message size: " + maxMessageSize + " bytes, and "
+            LOGGER.info( po.name + " connected to cpo with max message size: " + maxMessageSize + " bytes, and "
                     + pingIntervalMS + " ms ping interval" );
             deframer.resize( maxMessageSize );
             timeSinceLastPingMS.set( 0 );  // we're starting over on the ping time check...
@@ -540,7 +540,7 @@ public class CPOConnection {
                     try {
                         // get some bytes to send out...
                         getWriteBytes();
-                        LOG.debug( "Writing " + new String( lastWritten, StandardCharsets.UTF_8 ) + " to output stream " + writeStream.toString() );
+                        LOGGER.finest( "Writing " + new String( lastWritten, StandardCharsets.UTF_8 ) + " to output stream " + writeStream.toString() );
 
                         // test harness...
                         if( testException ) {

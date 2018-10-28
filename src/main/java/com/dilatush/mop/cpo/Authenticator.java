@@ -1,12 +1,11 @@
 package com.dilatush.mop.cpo;
 
+import com.dilatush.util.Checks;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-
-import static com.dilatush.util.General.isNull;
-import static com.dilatush.util.Strings.isEmpty;
 
 /**
  * Produces an authentication token from a shared secret, the post office name, and a message ID.  The resulting token can either be used by a client
@@ -23,8 +22,8 @@ public class Authenticator {
 
     public Authenticator( final byte[] _secret, final String _poName, final String _id ) {
 
-        if( isNull( (Object) _secret ) || isEmpty( _poName ) || isEmpty( _id ) )
-            throw new IllegalArgumentException( "Missing required argument for authenticator construction" );
+        Checks.required( (Object) _secret );
+        Checks.notEmpty( _poName, _id );
 
         try {
             MessageDigest digest = MessageDigest.getInstance( SHA256_PROVIDER );

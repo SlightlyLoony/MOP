@@ -1,10 +1,9 @@
 package com.dilatush.mop;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNotNull;
 import static com.dilatush.util.General.isNull;
@@ -29,7 +28,7 @@ import static com.dilatush.util.Strings.isEmpty;
  */
 public abstract class Actor {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     public final PostOffice                 po;
     public final String                     name;
@@ -76,7 +75,7 @@ public abstract class Actor {
         // kill our dispatcher...
         dispatcher.interrupt();
 
-        LOG.info( "Actor " + name + " has shut down" );
+        LOGGER.info( "Actor " + name + " has shut down" );
     }
 
 
@@ -321,7 +320,7 @@ public abstract class Actor {
                     if( handled( message, defaultKey(     message ) ) ) continue;
 
                     // if we get here, there was no matching handler, so just log it and leave...
-                    LOG.info( "No handler for " + message.toString() );
+                    LOGGER.info( "No handler for " + message.toString() );
                 }
                 catch( InterruptedException _e ) {
                     break;
@@ -331,7 +330,7 @@ public abstract class Actor {
                     // we get here only on an unchecked exception occurring somewhere in the code above...
                     // almost certainly that means the error occurred in the handler, and we'll have no idea why...
                     // so we'll do nothing here, and just try for another message...
-                    LOG.error( "Unhandled exception in message handler", _e );
+                    LOGGER.log( Level.SEVERE, "Unhandled exception in message handler", _e );
                 }
             }
         }

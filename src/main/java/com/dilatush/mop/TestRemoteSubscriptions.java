@@ -1,11 +1,10 @@
 package com.dilatush.mop;
 
 import com.dilatush.mop.cpo.CentralPostOffice;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.logging.Logger;
 
 import static java.lang.Thread.sleep;
 
@@ -16,14 +15,10 @@ import static java.lang.Thread.sleep;
  */
 public class TestRemoteSubscriptions {
 
-    private static Logger LOG;
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
 
     public static void main( String[] args ) throws InterruptedException {
-
-        // set up our console logger...
-        System.setProperty( "log4j.configurationFile", "TestLog.json" );
-        LOG = LogManager.getLogger();
 
         // create our central post office and start it up...
         CentralPostOffice cpo = new CentralPostOffice( "CentralPostOfficeConfig.json" );
@@ -40,7 +35,7 @@ public class TestRemoteSubscriptions {
         // wait until both post offices have connected...
         while( !test1.isConnected() || !test2.isConnected() )
             sleep( 10 );
-        LOG.info( "test1 and test2 connected" );
+        LOGGER.info( "test1 and test2 connected" );
 
         // start our tests...
         actor1.start();
@@ -93,7 +88,7 @@ public class TestRemoteSubscriptions {
         }
 
         public void onTimerMessage( final Message _message ) {
-            LOG.info( "Got timer!" );
+            LOGGER.info( "Got timer!" );
         }
     }
 

@@ -1,13 +1,6 @@
 package com.dilatush.mop;
 
 import com.dilatush.util.Base64;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.appender.ConsoleAppender;
-import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.logging.log4j.core.config.builder.api.AppenderComponentBuilder;
-import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder;
-import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory;
-import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -40,9 +33,6 @@ public class CPOManager {
     private static volatile boolean wait;
 
     public static void main( final String[] _args ) throws InterruptedException {
-
-        // configure the logger (no file)...
-        configureLogger();
 
         // get the path to our configuration file...
         String config = "CPOManager.json";   // the default...
@@ -490,20 +480,5 @@ public class CPOManager {
 
             waitForAck();
         }
-    }
-
-
-    private static void configureLogger() {
-
-        ConfigurationBuilder<BuiltConfiguration> builder = ConfigurationBuilderFactory.newConfigurationBuilder();
-        builder.setStatusLevel( Level.ERROR );
-        builder.setConfigurationName( "CPOManager" );
-        AppenderComponentBuilder appenderBuilder = builder.newAppender( "Stdout", "CONSOLE" ).addAttribute("target",
-                ConsoleAppender.Target.SYSTEM_OUT);
-        appenderBuilder.add(builder.newLayout( "PatternLayout" )
-                .addAttribute( "pattern", "%d [%t] %-5level: %msg%n%throwable" ) );
-        builder.add( appenderBuilder );
-        builder.add( builder.newRootLogger( Level.ERROR ).add( builder.newAppenderRef("Stdout") ) );
-        Configurator.initialize(builder.build());
     }
 }

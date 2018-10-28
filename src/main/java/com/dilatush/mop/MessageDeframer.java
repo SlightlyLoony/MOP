@@ -1,10 +1,9 @@
 package com.dilatush.mop;
 
 import com.dilatush.util.Base64;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.nio.ByteBuffer;
+import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNull;
 
@@ -18,7 +17,7 @@ import static com.dilatush.util.General.isNull;
  */
 public class MessageDeframer {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     private static final byte OPEN = '[';
     private static final byte CLOSE = ']';
@@ -92,7 +91,7 @@ public class MessageDeframer {
         // sanity checks...
         if( isNull( _buffer ) ) throw new IllegalArgumentException( "Missing buffer to append from" );
         if( _buffer.limit() > (buffer.capacity() - buffer.limit() ) ) {
-            LOG.warn( "Not enough capacity for bytes to add: " + _buffer.limit() + "; throwing away inbound bytes" );
+            LOGGER.warning( "Not enough capacity for bytes to add: " + _buffer.limit() + "; throwing away inbound bytes" );
             clear();
             return;
         }
@@ -141,7 +140,7 @@ public class MessageDeframer {
         // sanity checks...
         if( isNull( (Object) _bytes ) ) throw new IllegalArgumentException( "Missing bytes to append" );
         if( _length > (buffer.capacity() - buffer.limit() ) ) {
-            LOG.warn( "Not enough capacity for bytes to add: " + _length + "; throwing away inbound bytes" );
+            LOGGER.warning( "Not enough capacity for bytes to add: " + _length + "; throwing away inbound bytes" );
             clear();
             return;
         }
