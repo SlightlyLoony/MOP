@@ -91,7 +91,7 @@ public class MessageDeframer {
         // sanity checks...
         if( isNull( _buffer ) ) throw new IllegalArgumentException( "Missing buffer to append from" );
         if( _buffer.limit() > (buffer.capacity() - buffer.limit() ) ) {
-            LOGGER.warning( "Not enough capacity for bytes to add: " + _buffer.limit() + "; throwing away inbound bytes" );
+            LOGGER.warning( "Not enough capacity for bytes to add from ByteBuffer: " + _buffer.limit() + "; throwing away inbound bytes" );
             clear();
             return;
         }
@@ -140,7 +140,8 @@ public class MessageDeframer {
         // sanity checks...
         if( isNull( (Object) _bytes ) ) throw new IllegalArgumentException( "Missing bytes to append" );
         if( _length > (buffer.capacity() - buffer.limit() ) ) {
-            LOGGER.warning( "Not enough capacity for bytes to add: " + _length + "; throwing away inbound bytes" );
+            LOGGER.warning( "Not enough capacity for bytes to add from array: " + _length + ", capacity: " + buffer.capacity() +
+                    ", limit: " + buffer.limit() + "; throwing away inbound bytes" );
             clear();
             return;
         }
