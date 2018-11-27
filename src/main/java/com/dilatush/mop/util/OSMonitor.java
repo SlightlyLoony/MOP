@@ -1,6 +1,7 @@
 package com.dilatush.mop.util;
 
 import com.dilatush.mop.Message;
+import com.dilatush.util.Executor;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,8 +19,8 @@ import static java.lang.Thread.sleep;
 public class OSMonitor {
 
     private static final Executor osInfoEx       = new Executor( "uname -mnrs" );
-    private static final Executor osxMemInfoEx1   = new Executor( "sysctl hw.memsize" );
-    private static final Executor osxMemInfoEx2   = new Executor( "vm_stat" );
+    private static final Executor osxMemInfoEx1  = new Executor( "sysctl hw.memsize" );
+    private static final Executor osxMemInfoEx2  = new Executor( "vm_stat" );
     private static final Executor linuxMemInfoEx = new Executor( "free -b" );
     private static final Executor osxCPUInfoEx   = new Executor( "iostat -C" );
     private static final Executor linuxCPUInfoEx = new Executor( "cat /proc/stat" );
