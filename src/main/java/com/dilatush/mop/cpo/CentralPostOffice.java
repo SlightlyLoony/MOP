@@ -280,7 +280,7 @@ public class CentralPostOffice {
 
     private void handlePong( final Message _message ) {
 
-        LOGGER.info( "Received pong from: " + _message.from );
+        LOGGER.finer( "Received pong from: " + _message.from );
 
         // get the connection info (inserted by POConnection)...
         String connectionName = _message.optString( POConnection.CONNECTION_NAME, null );
@@ -613,7 +613,7 @@ public class CentralPostOffice {
         @Override
         public void run() {
 
-            LOGGER.info( "Sending pings" );
+            LOGGER.finer( "Sending pings" );
             Set<Map.Entry<String, POClient>> clientSet = clients.entrySet();
             for( Map.Entry<String, POClient> clientEntry : clientSet ) {
                 POClient client = clientEntry.getValue();

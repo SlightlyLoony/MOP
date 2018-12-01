@@ -19,7 +19,7 @@ import static java.lang.Thread.sleep;
  */
 public class CentralPostOfficeImpl {
 
-    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
+    private static Logger LOGGER;
 
     public static void main( final String[] _args ) throws InterruptedException {
 
@@ -32,6 +32,12 @@ public class CentralPostOfficeImpl {
             System.out.println( "CPO configuration file " + config + " does not exist!" );
             return;
         }
+
+        // set the configuration file location (must do before any logging actions occur)...
+        System.getProperties().setProperty( "java.util.logging.config.file", "logging.properties" );
+        LOGGER = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getSimpleName() );
+
+        LOGGER.info( "CPO starting..." );
 
         // now we start up our central post office...
         CentralPostOffice cpo = new CentralPostOffice( config );

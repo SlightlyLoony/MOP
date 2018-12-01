@@ -12,7 +12,7 @@ Type=simple
 WorkingDirectory=/apps/cpo
 
 #path to executable.
-ExecStart=/apps/cpo/runCPO.sh
+ExecStart=/usr/bin/java -jar -jar /apps/cpo/CPO.jar /apps/cpo/CPOConfigTom.json
 
 TimeoutStopSec=10
 Restart=no
