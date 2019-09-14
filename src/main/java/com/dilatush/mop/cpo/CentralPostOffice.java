@@ -37,6 +37,7 @@ public class CentralPostOffice {
     public final static String ADD       = "manage.add";
     public final static String DELETE    = "manage.delete";
     public final static String MONITOR   = "manage.monitor";
+    public final static String CONNECTED = "manage.connected";
 
     public final static DateTimeFormatter  TIME_FORMATTER
             = DateTimeFormatter
@@ -178,14 +179,15 @@ public class CentralPostOffice {
                 // now handle each possible message type...
                 switch( _message.type ) {
 
-                    case CONNECT:   handleConnect( _message, false ); break;
-                    case RECONNECT: handleConnect( _message, true  ); break;
-                    case STATUS:    handleStatus(  _message                    ); break;
-                    case WRITE:     handleWrite(   _message                    ); break;
-                    case ADD:       handleAdd(     _message                    ); break;
-                    case DELETE:    handleDelete(  _message                    ); break;
-                    case MONITOR:   handleMonitor( _message                    ); break;
-                    case PONG:      handlePong(    _message                    ); break;
+                    case CONNECT:   handleConnect(   _message, false             ); break;
+                    case RECONNECT: handleConnect(   _message, true              ); break;
+                    case STATUS:    handleStatus(    _message                    ); break;
+                    case WRITE:     handleWrite(     _message                    ); break;
+                    case ADD:       handleAdd(       _message                    ); break;
+                    case DELETE:    handleDelete(    _message                    ); break;
+                    case MONITOR:   handleMonitor(   _message                    ); break;
+                    case PONG:      handlePong(      _message                    ); break;
+                    case CONNECTED: handleConnected( _message                    ); break;
 
                     default:
                         LOGGER.severe( "Unknown message type received: " + _message.type );
@@ -294,6 +296,28 @@ public class CentralPostOffice {
 
         // reset the time since the last pong was received...
         connection.timeSinceLastPongMS.set( 0 );
+    }
+
+
+    private void handleConnected( final Message _message ) {
+
+        // get a list of connected post offices...
+        StringBuilder sb = new StringBuilder();
+        for( POClient client : clients.values() ) {
+            if( client.isConnected() ) {
+                if( sb.length() > 0 )
+                    sb.append( "," );
+                sb.append( client.name );
+            }
+        }
+
+        // now send the list back...
+        POClient sender = clients.get( _message.fromPO );
+        Message msg = new Message( "central.po", _message.from, "manage.connected", getNextID(), null, false );
+        msg.put( "postOffices", sb.toString() );
+        sender.deliver( msg );
+
+        LOGGER.info( "Sent list of connected post offices" );
     }
 
 

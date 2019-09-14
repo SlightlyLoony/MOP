@@ -144,6 +144,10 @@ import static com.dilatush.util.General.isNull;
         return manager;
     }
 
+    public boolean isConnected() {
+        return connection != null;
+    }
+
 
     /* package */ void setManager( final boolean _value ) {
         manager = _value;

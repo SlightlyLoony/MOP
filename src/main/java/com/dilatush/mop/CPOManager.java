@@ -70,15 +70,16 @@ public class CPOManager {
             String[] parts = command.split( "\\s+" );
             switch( parts[0] ) {
 
-                case "quit":    handleQuit   ( parts ); break;
-                case "status":  handleStatus ( parts ); break;
-                case "write":   handleWrite  ( parts ); break;
-                case "delete":  handleDelete ( parts ); break;
-                case "add":     handleAdd    ( parts ); break;
-                case "monitor": handleMonitor( parts ); break;
-                case "help":    handleHelp   ( parts ); break;
+                case "quit":      handleQuit     ( parts ); break;
+                case "status":    handleStatus   ( parts ); break;
+                case "write":     handleWrite    ( parts ); break;
+                case "delete":    handleDelete   ( parts ); break;
+                case "add":       handleAdd      ( parts ); break;
+                case "monitor":   handleMonitor  ( parts ); break;
+                case "connected": handleConnected( parts ); break;
+                case "help":      handleHelp     ( parts ); break;
 
-                default: handleError( parts ); break;
+                default:          handleError    ( parts ); break;
             }
 
             while( wait ) sleep( 100 );
@@ -187,13 +188,14 @@ public class CPOManager {
 
         String helpOn = (_parts.length > 1) ? _parts[1] : "";
         switch( helpOn ) {
-            case "quit":    handleHelpQuit();    break;
-            case "help":    handleHelpHelp();    break;
-            case "status":  handleHelpStatus();  break;
-            case "write":   handleHelpWrite();   break;
-            case "add":     handleHelpAdd();     break;
-            case "delete":  handleHelpDelete();  break;
-            case "monitor": handleHelpMonitor(); break;
+            case "quit":      handleHelpQuit();      break;
+            case "help":      handleHelpHelp();      break;
+            case "status":    handleHelpStatus();    break;
+            case "write":     handleHelpWrite();     break;
+            case "add":       handleHelpAdd();       break;
+            case "delete":    handleHelpDelete();    break;
+            case "monitor":   handleHelpMonitor();   break;
+            case "connected": handleHelpConnected(); break;
             default:
                 handleHelpQuit();
                 handleHelpHelp();
@@ -202,6 +204,7 @@ public class CPOManager {
                 handleHelpAdd();
                 handleHelpDelete();
                 handleHelpMonitor();
+                handleHelpConnected();
                 break;
         }
         wait = true;
@@ -213,7 +216,14 @@ public class CPOManager {
         print( "" );
         print( "monitor      Requests a monitor report from the Central Post Office, which has information " );
         print( "             about the operating system and Java virtual machine that the Central Post" );
-        print( "             Office is running on" );
+        print( "             Office is running on." );
+    }
+
+
+    private static void handleHelpConnected() {
+        print( "" );
+        print( "connected    Requests a list of the post offices that are currently connected to the " );
+        print( "             Central Post Office." );
     }
 
 
@@ -284,6 +294,13 @@ public class CPOManager {
     }
 
 
+    private static void handleConnected( final String[] parts ) {
+        print( "Sending connected request..." );
+        ma.requestConnected();
+        wait = true;
+    }
+
+
     private static void handleStatus( final String[] _parts ) {
         print( "Sending status request..." );
         ma.requestStatus();
@@ -301,6 +318,7 @@ public class CPOManager {
         print( "delete <po>  delete the given Post Office from the CPO" );
         print( "add <po>     add the given Post Office to the CPO"      );
         print( "monitor      requests a monitor report from the CPO"    );
+        print( "connected    requests a list of connected Post Offices" );
         print( "help <cmd>   get some help on using the CPOM"           );
         print( "quit         quit the CPOM"                             );
         print( ""                                                       );
@@ -326,11 +344,12 @@ public class CPOManager {
 
         protected ManagerActor( final PostOffice _po ) {
             super( _po, "manager" );
-            registerFQDirectMessageHandler( this::statusHandler,    "central.po", "manage", "status"  );
-            registerFQDirectMessageHandler( this::writeHandler,     "central.po", "manage", "write"   );
-            registerFQDirectMessageHandler( this::addHandler,       "central.po", "manage", "add"     );
-            registerFQDirectMessageHandler( this::deleteHandler,    "central.po", "manage", "delete"  );
-            registerFQDirectMessageHandler( this::monitorHandler,   "central.po", "manage", "monitor" );
+            registerFQDirectMessageHandler( this::statusHandler,    "central.po", "manage", "status"    );
+            registerFQDirectMessageHandler( this::writeHandler,     "central.po", "manage", "write"     );
+            registerFQDirectMessageHandler( this::addHandler,       "central.po", "manage", "add"       );
+            registerFQDirectMessageHandler( this::deleteHandler,    "central.po", "manage", "delete"    );
+            registerFQDirectMessageHandler( this::monitorHandler,   "central.po", "manage", "monitor"   );
+            registerFQDirectMessageHandler( this::connectedHandler, "central.po", "manage", "connected" );
         }
 
 
@@ -358,6 +377,12 @@ public class CPOManager {
 
         private void requestStatus() {
             Message msg = mailbox.createDirectMessage( "central.po", "manage.status", false );
+            mailbox.send( msg );
+        }
+
+
+        private void requestConnected() {
+            Message msg = mailbox.createDirectMessage( "central.po", "manage.connected", false );
             mailbox.send( msg );
         }
 
@@ -423,6 +448,13 @@ public class CPOManager {
             print( "            Max RAM: " + _message.getLongDotted( "monitor.jvm.maxBytes" ) + " bytes" );
             print( "            Threads: " + _message.getIntDotted( "monitor.jvm.totalThreads" ) );
             print( "    Running Threads: " + _message.getIntDotted( "monitor.jvm.runningThreads" ) );
+            waitForAck();
+        }
+
+
+        protected void connectedHandler( final Message _message ) {
+            print( "" );
+            print( "Connected post offices: " + _message.getStringDotted( "postOffices" ) );
             waitForAck();
         }
 
