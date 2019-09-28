@@ -38,8 +38,7 @@ public class MessageDeframer {
 
     public MessageDeframer( final int _maxMessageSize ) {
         maxMessageSize = _maxMessageSize;
-        bufferSize = 2 * (maxMessageSize + 6 + 4);  // size buffer to hold two complete serialized messages of maximum size...
-        buffer = ByteBuffer.allocate( bufferSize );
+        buffer = allocateBuffer();
         frameOpenDetected = false;
         frameLength = 0;
         buffer.limit( 0 );  // this marks our buffer as empty...
@@ -69,13 +68,18 @@ public class MessageDeframer {
 
         // allocate new buffer of the right size...
         maxMessageSize = _newMaxMessageSize;
-        bufferSize = 5 * (maxMessageSize + 6 + 4);  // if this is smaller than the biggest possible read buffer, we have a problem...
-        ByteBuffer newBuffer = ByteBuffer.allocate( bufferSize );
+        ByteBuffer newBuffer = allocateBuffer();
 
         // copy any bytes we already have into the new one...
         newBuffer.put( buffer );
         newBuffer.flip();
         buffer = newBuffer;
+    }
+
+
+    private ByteBuffer allocateBuffer() {
+        bufferSize = 5 * (maxMessageSize + 6 + 4);  // if this is smaller than the biggest possible read buffer, we have a problem...
+        return ByteBuffer.allocate( bufferSize );
     }
 
 
