@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,6 +34,7 @@ public class CPOConnection {
     private static final int MAX_OUTGOING_QUEUE_MSGS  = 100;
     private static final int DEFAULT_MAX_MESSAGE_SIZE = 300;
     private static final int PING_CHECK_INTERVAL_MS   = 100;
+    private static final int READ_BUFFER_SIZE         = 1024;
 
     private final PostOffice                  po;
     private final String                      cpoHost;
@@ -53,6 +55,7 @@ public class CPOConnection {
     private volatile boolean   connected;
     private volatile Instant   lastConnectTime;
     private volatile boolean   reconnectScheduled;
+    private AtomicInteger      maxMessageSize;
     private AtomicLong         timeSinceLastPingMS;
     private AtomicLong         connections;
     private AtomicLong         rxMessages;
@@ -82,6 +85,7 @@ public class CPOConnection {
         rxBytes             = new AtomicLong( 0 );
         txBytes             = new AtomicLong( 0 );
         timeSinceLastPingMS = new AtomicLong( 0 );
+        maxMessageSize      = new AtomicInteger( DEFAULT_MAX_MESSAGE_SIZE );
 
         connected      = false;
         writeSync      = new Object();
@@ -349,7 +353,7 @@ public class CPOConnection {
                 // we only get here if we successfully connected by TCP...
 
                 // set up our deframer...
-                deframer = new MessageDeframer( DEFAULT_MAX_MESSAGE_SIZE );
+                deframer = new MessageDeframer( maxMessageSize );
 
                 // start up our reader/writer threads...
                 reader = new Reader();
@@ -380,7 +384,6 @@ public class CPOConnection {
     private class Reader extends Thread {
 
         private InputStream      readStream;
-        private int              maxMessageSize;
         private byte[]           buffer;
         private volatile boolean testException;
 
@@ -388,6 +391,7 @@ public class CPOConnection {
         private Reader() {
             setName( po.name + " CPO Connection Reader" );
             setDaemon( true );
+            buffer = new byte[READ_BUFFER_SIZE];  // allocate a buffer that can read enough bytes for most messages...
             start();
         }
 
@@ -397,8 +401,6 @@ public class CPOConnection {
             try {
 
                 readStream = socket.getInputStream();
-                maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
-                buffer = new byte[(maxMessageSize + 20) * 2];
 
                 while( true ) {
 
@@ -420,41 +422,50 @@ public class CPOConnection {
                     // if we actually got some bytes, so process them...
                     if( bytesRead > 0 ) {
 
-                        // first add them to our deframer...
-                        deframer.addBytes( buffer, 0, bytesRead );
+                        // keep track of how many we've added to the deframer...
+                        int bytesAdded = 0;
+
+                        // track the total bytes read...
                         rxBytes.addAndGet( bytesRead );
 
-                        // send any complete messages...
-                        while( true ) {
+                        // loop so long as we still have bytes to add to the deframer...
+                        while( bytesAdded < bytesRead ) {
 
-                            // get a frame, if we got a complete one...
-                            byte[] frame = deframer.getFrame();
-                            if( isNull( (Object) frame ) ) break;  // no more complete frames...
+                            // first add bytes to our deframer...
+                            bytesAdded += deframer.addBytes( buffer, 0, bytesRead );
 
-                            // decode the received message...
-                            // TODO: need error handling here, in case the JSON is invalid...
-                            Message rxMsg = new Message( new String( frame, StandardCharsets.UTF_8 ) );
-                            rxMessages.incrementAndGet();
+                            // send any complete messages...
+                            while( true ) {
 
-                            // if this is a connection management message, handle it here...
-                            if( (po.name + ".po").equals( rxMsg.to ) ) {
+                                // get a frame, if we got a complete one...
+                                byte[] frame = deframer.getFrame();
+                                if( isNull( (Object) frame ) ) break;  // no more complete frames...
 
-                                switch( rxMsg.type ) {
+                                // decode the received message...
+                                // TODO: need error handling here, in case the JSON is invalid...
+                                Message rxMsg = new Message( new String( frame, StandardCharsets.UTF_8 ) );
+                                rxMessages.incrementAndGet();
 
-                                    case "manage.connect":   handleConnect( rxMsg, false ); break;
-                                    case "manage.reconnect": handleConnect( rxMsg, true  ); break;
-                                    case "manage.ping":      handlePing();                             break;
+                                // if this is a connection management message, handle it here...
+                                if( (po.name + ".po").equals( rxMsg.to ) ) {
 
-                                    default:
-                                        po.send( rxMsg );  // other management messages get handled in the post office...
+                                    switch( rxMsg.type ) {
+
+                                        case "manage.connect":   handleConnect( rxMsg, false ); break;
+                                        case "manage.reconnect": handleConnect( rxMsg, true  ); break;
+                                        case "manage.ping":      handlePing();                             break;
+
+                                        default:
+                                            po.send( rxMsg );  // other management messages get handled in the post office...
+                                    }
                                 }
-                            }
 
-                            // otherwise, just pass the message to our post office for routing...
-                            else {
-                                if( rxMsg.isEncrypted() )
-                                    rxMsg.decrypt( secret );
-                                po.send( rxMsg );
+                                // otherwise, just pass the message to our post office for routing...
+                                else {
+                                    if( rxMsg.isEncrypted() )
+                                        rxMsg.decrypt( secret );
+                                    po.send( rxMsg );
+                                }
                             }
                         }
                     }
@@ -479,10 +490,9 @@ public class CPOConnection {
 
 
         private void handleConnect( final Message _message, final boolean isReconnect ) {
-            maxMessageSize = _message.optInt( "maxMessageSize", maxMessageSize );
+            maxMessageSize.set( _message.optInt( "maxMessageSize", maxMessageSize.get() ) );
             pingIntervalMS = _message.getLong( "pingIntervalMS" );
-            buffer = new byte[(maxMessageSize + 20) * 2];
-            LOGGER.info( po.name + " connected to cpo with max message size: " + maxMessageSize + " bytes, and "
+            LOGGER.info( po.name + " connected to cpo with max message size: " + maxMessageSize.get() + " bytes, and "
                     + pingIntervalMS + " ms ping interval" );
             deframer.resize( maxMessageSize );
             timeSinceLastPingMS.set( 0 );  // we're starting over on the ping time check...

@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -37,7 +38,7 @@ public class POConnection {
     /* package */ volatile boolean open;
 
 
-    /* package */ POConnection( final CentralPostOffice _cpo, final SocketChannel _client, final String _name, final int _maxMessageSize ) {
+    /* package */ POConnection( final CentralPostOffice _cpo, final SocketChannel _client, final String _name, final AtomicInteger _maxMessageSize ) {
         cpo                 = _cpo;
         socket              = _client;
         name                = _name;
@@ -49,44 +50,55 @@ public class POConnection {
 
     /* package */ void receiveBytes( final ByteBuffer _bytes ) {
 
-        // if closed, ignore these...
-        if( !open ) return;
-
-        // add the received bytes to our deframer...
+        // update the bytes received...
         if( isNotNull( client ))
             client.rxBytes.addAndGet( _bytes.limit() );
-        deframer.addBytes( _bytes );
 
-        // see if we've received any complete messages...
-        while( true ) {
+        // loop as long as we still have bytes to append to our deframer...
+        while( _bytes.remaining() > 0 ) {
 
-            // try to extract a frame...
-            byte[] frame = deframer.getFrame();
+            LOGGER.finest( "Rx bytes remaining: " + _bytes.remaining() );
 
-            // if we got nothing, it's time to leave...
-            if( isNull( (Object) frame ) ) break;
+            // if closed, ignore these...
+            if( !open ) return;
 
-            try {
+            // add the received bytes to our deframer...
+            deframer.addBytes( _bytes );
 
-                // try to extract a message...
-                // TODO: handle JSON decoding errors...
-                Message msg = new Message( new String( frame, StandardCharsets.UTF_8 ) );
-                LOGGER.finest( "Received: " + msg.toString() );
-                if( isNotNull( client ) )
-                    client.rxMessages.incrementAndGet();
+            // see if we've received any complete messages...
+            while( true ) {
 
-                // if this message is going to the cpo, add a connection name attribute for use by the router...
-                if( "central.po".equals( msg.to ) )
-                    msg.put( CONNECTION_NAME, name );
+                // try to extract a frame...
+                byte[] frame = deframer.getFrame();
 
-                // send it to the central post office...
-                cpo.receiveMessage( client, msg );
-            }
-            catch( Exception _e ) {
-                // getting here means we had a problem decoding the received message - we log and ignore...
-                LOGGER.log( Level.SEVERE, "Could not decode received message: " + new String( frame, StandardCharsets.UTF_8 ), _e );
+                // if we got nothing, it's time to leave...
+                if( isNull( (Object) frame ) ) break;
+
+                try {
+
+                    // try to extract a message...
+                    // TODO: handle JSON decoding errors...
+                    Message msg = new Message( new String( frame, StandardCharsets.UTF_8 ) );
+                    LOGGER.finest( "Received: " + msg.toString() );
+                    if( isNotNull( client ) )
+                        client.rxMessages.incrementAndGet();
+
+                    // if this message is going to the cpo, add a connection name attribute for use by the router...
+                    if( "central.po".equals( msg.to ) )
+                        msg.put( CONNECTION_NAME, name );
+
+                    // send it to the central post office...
+                    cpo.receiveMessage( client, msg );
+                }
+                catch( Exception _e ) {
+                    // getting here means we had a problem decoding the received message - we log and ignore...
+                    LOGGER.log( Level.SEVERE, "Could not decode received message: " + new String( frame, StandardCharsets.UTF_8 ), _e );
+                }
             }
         }
+
+        // clear our input buffer to show we got 'em all...
+        _bytes.clear();
     }
 
 

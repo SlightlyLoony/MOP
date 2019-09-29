@@ -8,6 +8,7 @@ import java.io.File;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.dilatush.util.Strings.isEmpty;
 
@@ -29,11 +30,11 @@ public class Config {
     private static final String FIELD_PING_INTERVAL_MS = "pingIntervalMS";
     private static final String FIELD_MANAGER          = "manager";
 
-    /* package */ final String localAddress;
-    /* package */ final int    port;
-    /* package */ final int    maxMessageSize;
-    /* package */ final String name;
-    /* package */ final long   pingIntervalMS;
+    /* package */ final String        localAddress;
+    /* package */ final int           port;
+    /* package */ final AtomicInteger maxMessageSize;
+    /* package */ final String        name;
+    /* package */ final long          pingIntervalMS;
 
     /* package */ long echoIntervalMS;
     /* package */ Map<String,POClient> clients;  // the state known of client post offices, post office name -> client...
@@ -47,7 +48,7 @@ public class Config {
         localAddress   = _localAddress;
         port           = _port;
         name           = _name;
-        maxMessageSize = _maxMessageSize;
+        maxMessageSize = new AtomicInteger( _maxMessageSize );
         pingIntervalMS = _pingIntervalMS;
     }
 
@@ -61,13 +62,13 @@ public class Config {
         JSONObject config = new JSONObject( json );
 
         // read in our persistent fields...
-        long echoIntervalMS          = config.getLong( FIELD_ECHO_INTERVAL_MS );
-        String localAddress          = config.getString( FIELD_LOCAL_ADDRESS );
-        int port                     = config.getInt( FIELD_PORT );
-        long pingIntervalMS          = config.getInt( FIELD_PING_INTERVAL_MS );
-        String cpoName               = config.getString( FIELD_NAME );
-        int maxMsgSize               = config.getInt( FIELD_MAX_MSG_SIZE );
-        JSONArray jsonClients        = config.getJSONArray( FIELD_CLIENTS );
+        long echoIntervalMS          = config.getLong(      FIELD_ECHO_INTERVAL_MS );
+        String localAddress          = config.getString(    FIELD_LOCAL_ADDRESS    );
+        int port                     = config.getInt(       FIELD_PORT             );
+        long pingIntervalMS          = config.getInt(       FIELD_PING_INTERVAL_MS );
+        String cpoName               = config.getString(    FIELD_NAME             );
+        int maxMsgSize               = config.getInt(       FIELD_MAX_MSG_SIZE     );
+        JSONArray jsonClients        = config.getJSONArray( FIELD_CLIENTS          );
         Map<String,POClient> clients = new ConcurrentHashMap<>();
         for( int i = 0; i < jsonClients.length(); i++ ) {
             JSONObject jsonClient = jsonClients.getJSONObject( i );

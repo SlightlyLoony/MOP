@@ -3,6 +3,7 @@ package com.dilatush.mop;
 import com.dilatush.util.Base64;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNull;
@@ -27,7 +28,6 @@ public class MessageDeframer {
     private ByteBuffer buffer;    // note 1...
     private boolean frameOpenDetected;
     private int frameLength;
-    private int bufferSize;
 
 
     // Notes:
@@ -36,8 +36,8 @@ public class MessageDeframer {
     //     any method of this class, those uses might be different, but between calls the preceding must hold.
 
 
-    public MessageDeframer( final int _maxMessageSize ) {
-        maxMessageSize = _maxMessageSize;
+    public MessageDeframer( final AtomicInteger _maxMessageSize ) {
+        maxMessageSize = _maxMessageSize.get();
         buffer = allocateBuffer();
         frameOpenDetected = false;
         frameLength = 0;
@@ -61,13 +61,14 @@ public class MessageDeframer {
      *
      * @param _newMaxMessageSize the new maximum message size.
      */
-    public void resize( final int _newMaxMessageSize ) {
+    public void resize( final AtomicInteger _newMaxMessageSize ) {
 
         // if we're asking for a smaller (or same) sized buffer, just leave...
-        if( _newMaxMessageSize <= maxMessageSize ) return;
+        int newMaxMessageSize = _newMaxMessageSize.get();
+        if( newMaxMessageSize <= maxMessageSize ) return;
 
         // allocate new buffer of the right size...
-        maxMessageSize = _newMaxMessageSize;
+        maxMessageSize = newMaxMessageSize;
         ByteBuffer newBuffer = allocateBuffer();
 
         // copy any bytes we already have into the new one...
@@ -78,27 +79,29 @@ public class MessageDeframer {
 
 
     private ByteBuffer allocateBuffer() {
-        bufferSize = 5 * (maxMessageSize + 6 + 4);  // if this is smaller than the biggest possible read buffer, we have a problem...
+        int bufferSize = 5 * (maxMessageSize + 6 + 4);  // if this is smaller than the biggest possible read buffer, we have a problem...
         return ByteBuffer.allocate( bufferSize );
     }
 
 
     /**
-     * Appends the bytes in the specified buffer to this instance.  This buffer must have its position at 0 and its limit set to the number of bytes
-     * in the buffer.  This method will drain the source buffer and clear it.  Throws an {@link IllegalStateException} if an attempt is made to add
-     * more bytes than this instance can contain.
+     * Appends bytes in the specified buffer to this instance.  As many bytes as this instance has the capacity to add are appended.  Upon return,
+     * the position is the next byte remaining in the specified buffer, and limit - position is the number of bytes that were not added.
      *
      * @param _buffer the bytes to append to this instance.
      */
     public void addBytes( final ByteBuffer _buffer ) {
 
         // sanity checks...
-        if( isNull( _buffer ) ) throw new IllegalArgumentException( "Missing buffer to append from" );
-        if( _buffer.limit() > (buffer.capacity() - buffer.limit() ) ) {
-            LOGGER.warning( "Not enough capacity for bytes to add from ByteBuffer: " + _buffer.limit() + "; throwing away inbound bytes" );
-            clear();
-            return;
-        }
+        if( isNull( _buffer ) )
+            throw new IllegalArgumentException( "Missing buffer to append from" );
+        if( _buffer.remaining() <= 0)
+            throw new IllegalArgumentException( "Specified buffer has no bytes to append" );
+
+        // figure out how many bytes we can append, and configure the source buffer accordingly...
+        int appendCount = Math.min( buffer.capacity() - buffer.limit(), _buffer.remaining() );
+        int specifiedBufferLimit = _buffer.limit();
+        _buffer.limit( _buffer.position() + appendCount );
 
         // remember our old position so we can put it back later...
         int pos = buffer.position();
@@ -110,45 +113,32 @@ public class MessageDeframer {
         // copy our bytes...
         buffer.put( _buffer );
 
-        // clear the source buffer...
-        _buffer.clear();
+        // get the specified buffer's limit back to its original state...
+        _buffer.limit( specifiedBufferLimit );
 
-        // get our source and limit to the right place...
+        // get our position and limit to the right place...
         buffer.limit( buffer.position() );
         buffer.position( pos );
     }
 
 
     /**
-     * Appends all the bytes in the specified byte array to this instance.  Throws an {@link IllegalStateException} if an attempt is made to add
-     * more bytes than this instance can contain.
+     * Appends bytes in the specified byte array to this instance, returning the number actually appended.  As many bytes as this instance has the
+     * capacity to add are appended.
      *
-     * @param _bytes the byte array containing the bytes to append to this instance.
+     * @param _bytes the byte array containing the bytes to append to this instance
+     * @return the number of bytes actually appended
      */
-    public void addBytes( final byte[] _bytes ) {
-
-        // sanity check...
-        if( isNull( (Object) _bytes ) ) throw new IllegalArgumentException( "Missing bytes to append" );
-        addBytes( _bytes, 0, _bytes.length );
-    }
-
-
-    /**
-     * Appends all the bytes in the specified byte array to this instance.  Throws an {@link IllegalStateException} if an attempt is made to add
-     * more bytes than this instance can contain.
-     *
-     * @param _bytes the byte array containing the bytes to append to this instance.
-     */
-    public void addBytes( final byte[] _bytes, final int _offset, final int _length ) {
+    public int addBytes( final byte[] _bytes, final int _offset, final int _length ) {
 
         // sanity checks...
-        if( isNull( (Object) _bytes ) ) throw new IllegalArgumentException( "Missing bytes to append" );
-        if( _length > (buffer.capacity() - buffer.limit() ) ) {
-            LOGGER.warning( "Not enough capacity for bytes to add from array: " + _length + ", capacity: " + buffer.capacity() +
-                    ", limit: " + buffer.limit() + "; throwing away inbound bytes" );
-            clear();
-            return;
-        }
+        if( isNull( (Object) _bytes ) )
+            throw new IllegalArgumentException( "Missing bytes to append" );
+        if( _length - _offset <= 0 )
+            throw new IllegalArgumentException( "Specified buffer has no bytes to append" );
+
+        // figure out how many bytes we can append...
+        int appendCount = Math.min( buffer.capacity() - buffer.limit(), _length - _offset );
 
         // remember our old position so we can put it back later...
         int pos = buffer.position();
@@ -158,11 +148,13 @@ public class MessageDeframer {
         buffer.limit( buffer.capacity() );
 
         // copy our bytes...
-        buffer.put( _bytes, _offset, _length );
+        buffer.put( _bytes, _offset, appendCount );
 
         // get our source and limit to the right place...
         buffer.limit( buffer.position() );
         buffer.position( pos );
+
+        return appendCount;
     }
 
 
