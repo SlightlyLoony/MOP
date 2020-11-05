@@ -161,8 +161,14 @@ public class PostOffice extends Thread {
 
                 // deliver it straight to the local mailbox...
                 Mailbox dest = mailboxes.get( _message.to.substring( prefix.length() ) );
-                if( isNull( dest ) ) throw new IllegalArgumentException( "Destination mailbox does not exist: " + _message.to );
-                dest.receive( _message );
+
+                // Discovered (the hard way) that it's possible for a message to be received before the destination mailbox is set up in a
+                // mailbox client.  In this case we'll log a warning and ignore the message, instead of erroring out (original code commented out)...
+                // if( isNull( dest ) ) throw new IllegalArgumentException( "Destination mailbox does not exist: " + _message.to );
+                if( isNull( dest ) )
+                    LOGGER.warning( "Destination mailbox does not exist: " + _message.to );
+                else
+                    dest.receive( _message );
             }
 
             // else the destination is foreign...
