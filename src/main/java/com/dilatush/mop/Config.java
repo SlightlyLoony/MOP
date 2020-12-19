@@ -15,6 +15,15 @@ public class Config {
 
 
     /**
+     * Creates a new instance of this class, with default values of 100 for the queue size and 4000 for the CPO port number.
+     */
+    public Config() {
+        queueSize = 100;
+        cpoPort   = 4000;
+    }
+
+
+    /**
      * Creates a new instance of this class.
      *
      * @param _name The name of this post office, which must be at least one character long and unique amongst all post offices connected to the
