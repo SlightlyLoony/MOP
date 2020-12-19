@@ -84,15 +84,44 @@ public class PostOffice extends Thread {
     }
 
 
+    /**
+     * Create a new {@link PostOffice} instance with the given configuration.
+     *
+     * @param _config the configuration.
+     */
+    public PostOffice( final com.dilatush.mop.Config _config ) {
+        this( _config.name, _config.secret, _config.queueSize, _config.cpoHost, _config.cpoPort );
+    }
+
+
+    /**
+     * Create a new {@link PostOffice} instance with the given configuration.
+     *
+     * @param _config the configuration.
+     */
     public PostOffice( final Config _config ) {
+        this( _config.optString( "name" ), _config.optString( "secret" ),_config.optInt( "queueSize" ), _config.optString( "cpoHost" ), _config.optInt( "cpoPort" ) );
+    }
 
-        if( isNull( _config ) ) throw new IllegalArgumentException( "No configuration" );
 
-        name                = _config.optString( "name"      );
-        String secretBase64 = _config.optString( "secret"    );
-        mailboxQueueSize    = _config.optInt   ( "queueSize" );
-        cpoHost             = _config.optString( "cpoHost"   );
-        cpoPort             = _config.optInt   ( "cpoPort"   );
+    /**
+     * Create a new {@link PostOffice} instance with the given parameters.
+     *
+     * @param _name The name of this post office, which must be at least one character long and unique amongst all post offices connected to the
+     *              same central post office.
+     * @param _secretBase64 The secret used to encrypt messages to and from this post office and the central post office.  It must be identical to
+     *                      the secret for this post office that is configured on the central post office.
+     * @param _mailboxQueueSize The maximum number of received messages that may be queued in a mailbox.
+     * @param _cpoHost The fully qualified cpoHost name (or IP address) of the central post office cpoHost.
+     * @param _cpoPort The TCP cpoPort number for the central post office.
+     */
+    public PostOffice( final String _name, final String _secretBase64, final int _mailboxQueueSize, final String _cpoHost, final int _cpoPort ) {
+
+        name                = _name;
+        String secretBase64 = _secretBase64;
+        mailboxQueueSize    = _mailboxQueueSize;
+        cpoHost             = _cpoHost;
+        cpoPort             = _cpoPort;
 
         if( isEmpty( name ) || name.contains( "." ) ) throw new IllegalArgumentException( "Name is empty or contains a period (\".\")" );
         if( mailboxQueueSize < 1) throw new IllegalArgumentException( "Invalid maximum mailbox received message queue size: " + mailboxQueueSize );
