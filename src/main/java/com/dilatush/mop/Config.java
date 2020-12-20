@@ -1,17 +1,26 @@
 package com.dilatush.mop;
 
+import com.dilatush.util.Validatable;
+
+import java.util.logging.Logger;
+
+import static com.dilatush.util.Strings.isEmpty;
+
 /**
- * Simple POJO to hold post office configuration information.
+ * Simple validatable POJO to hold post office configuration information.
  *
  * @author Tom Dilatush  tom@dilatush.com
  */
-public class Config {
+public class Config implements Validatable {
 
-    public String name;
-    public String secret;
-    public int queueSize;
-    public String cpoHost;
-    public int cpoPort;
+    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
+
+    public  String  name;
+    public  String  secret;
+    public  int     queueSize;
+    public  String  cpoHost;
+    public  int     cpoPort;
+    private boolean valid;
 
 
     /**
@@ -40,5 +49,32 @@ public class Config {
         queueSize = _queueSize;
         cpoHost = _cpoHost;
         cpoPort = _cpoPort;
+    }
+
+
+    @Override
+    public boolean isValid() {
+
+        // if we've already validated, just leave...
+        if( valid )
+            return true;
+
+        // otherwise, do our checking...
+        valid = true;  // trust, but verify...
+
+        // the checks...
+        if( isEmpty( name ) || name.contains( "." ) ) {
+            valid = false;
+            LOGGER.severe( "Post Office name is empty or contains a period (\".\")" );
+        }
+        if( queueSize < 1 ) {
+            valid = false;
+            LOGGER.severe( "Post Office invalid maximum mailbox received message queue size: " + queueSize );
+        }
+        if( isEmpty( secret ) ) {
+            valid = false;
+            LOGGER.severe( "Post Office missing shared secret" );
+        }
+        return valid;
     }
 }

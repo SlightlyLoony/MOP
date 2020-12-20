@@ -118,18 +118,17 @@ public class PostOffice extends Thread {
     public PostOffice( final String _name, final String _secretBase64, final int _mailboxQueueSize, final String _cpoHost, final int _cpoPort ) {
 
         name                = _name;
-        String secretBase64 = _secretBase64;
         mailboxQueueSize    = _mailboxQueueSize;
         cpoHost             = _cpoHost;
         cpoPort             = _cpoPort;
 
         if( isEmpty( name ) || name.contains( "." ) ) throw new IllegalArgumentException( "Name is empty or contains a period (\".\")" );
         if( mailboxQueueSize < 1) throw new IllegalArgumentException( "Invalid maximum mailbox received message queue size: " + mailboxQueueSize );
-        if( isEmpty( secretBase64 ) ) throw new IllegalArgumentException( "Missing shared secret" );
+        if( isEmpty( _secretBase64 ) ) throw new IllegalArgumentException( "Missing shared secret" );
 
         prefix              = name + ".";
         timer               = new Timer( name + " Timer", true );
-        secret              = Base64.decodeBytes( secretBase64 );
+        secret              = Base64.decodeBytes( _secretBase64 );
         specialMessageTypes = new HashSet<>();
         specialMessageTypes.add( "manage.subscribe"   );
         specialMessageTypes.add( "manage.unsubscribe" );

@@ -23,7 +23,6 @@ public class Mailbox {
     public  final String     mailboxID;  // the unique name of this mailbox in the world...
 
     private final BlockingQueue<Message>             queue;      // the queue of received messages...
-    private final int                                queueSize;  // the maximum size of the receive queue...
     private final Map<String,BlockingQueue<Message>> waiters;    // the registry of waiters waiting for reply messages (message IDs -> waiters)...
 
 
@@ -38,9 +37,7 @@ public class Mailbox {
         po = _po;
         name = _name;
         mailboxID = po.name + "." + name;
-        queueSize = _queueSize;
-
-        queue = new ArrayBlockingQueue<>( queueSize );
+        queue = new ArrayBlockingQueue<>( _queueSize );
         waiters = new ConcurrentHashMap<>();
     }
 
