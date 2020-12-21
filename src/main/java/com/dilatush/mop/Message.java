@@ -9,11 +9,9 @@ import org.json.JSONObject;
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.dilatush.util.Strings.isNonEmpty;
@@ -61,7 +59,7 @@ public class Message extends HJSONObject {
      * zero-length, or if the JSON is missing any required fields, and a {@link org.json.JSONException} if the string contains malformed JSON.  Note that
      * <i>what</i> fields are required depends on what type of message it is (direct or published, reply expected, etc.).
      *
-     * @param _json
+     * @param _json The JSON string to create a message from.
      */
     public Message( final String _json ) {
         super( _json );
@@ -422,28 +420,22 @@ public class Message extends HJSONObject {
      * @return a byte array containing the UTF-8 encoded serialized bytes representing this instance.
      */
     public byte[] serialize() {
-        try {
 
-            // first we get our contents into bytes...
-            byte[] contents = toJSON().getBytes( "UTF8" );
+        // first we get our contents into bytes...
+        byte[] contents = toJSON().getBytes( StandardCharsets.UTF_8 );
 
-            // now we construct our prefix...
-            byte[] prefix = ("[[[" + Base64.encode( contents.length ) + "]").getBytes( "UTF8" );
+        // now we construct our prefix...
+        byte[] prefix = ("[[[" + Base64.encode( contents.length ) + "]").getBytes( StandardCharsets.UTF_8 );
 
-            // and finally our suffix...
-            byte[] suffix = "]]".getBytes( "UTF8" );
+        // and finally our suffix...
+        byte[] suffix = "]]".getBytes( StandardCharsets.UTF_8 );
 
-            // then concatenate them and we're done...
-            byte[] result = new byte[ contents.length + prefix.length + suffix.length ];
-            System.arraycopy( prefix, 0, result, 0, prefix.length );
-            System.arraycopy( contents, 0, result, prefix.length, contents.length );
-            System.arraycopy( suffix, 0, result, prefix.length + contents.length, suffix.length );
-            return result;
-        }
-        catch( UnsupportedEncodingException _e ) {
-            LOGGER.log( Level.SEVERE, "UTF8 is unsupported", _e );   // obviously, this should never happen...
-            throw new IllegalStateException( "UTF8 is unsupported" );
-        }
+        // then concatenate them and we're done...
+        byte[] result = new byte[ contents.length + prefix.length + suffix.length ];
+        System.arraycopy( prefix, 0, result, 0, prefix.length );
+        System.arraycopy( contents, 0, result, prefix.length, contents.length );
+        System.arraycopy( suffix, 0, result, prefix.length + contents.length, suffix.length );
+        return result;
     }
 
 

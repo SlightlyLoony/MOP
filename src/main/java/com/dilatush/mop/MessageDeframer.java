@@ -18,6 +18,7 @@ import static com.dilatush.util.General.isNull;
  */
 public class MessageDeframer {
 
+    @SuppressWarnings( "unused" )
     private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     private static final byte OPEN = '[';
@@ -48,6 +49,7 @@ public class MessageDeframer {
     /**
      * Clears all bytes from the buffer, as if just created.
      */
+    @SuppressWarnings( "unused" )
     private void clear() {
         frameOpenDetected = false;
         frameLength = 0;
@@ -126,13 +128,15 @@ public class MessageDeframer {
      * Appends bytes in the specified byte array to this instance, returning the number actually appended.  As many bytes as this instance has the
      * capacity to add are appended.
      *
-     * @param _bytes the byte array containing the bytes to append to this instance
+     * @param _bytes The byte array containing the bytes to append to this instance
+     * @param _offset The offset into the byte array to start appending from.
+     * @param _length The length of the bytes to append.
      * @return the number of bytes actually appended
      */
     public int addBytes( final byte[] _bytes, final int _offset, final int _length ) {
 
         // sanity checks...
-        if( isNull( (Object) _bytes ) )
+        if( _bytes == null )
             throw new IllegalArgumentException( "Missing bytes to append" );
         if( _length - _offset <= 0 )
             throw new IllegalArgumentException( "Specified buffer has no bytes to append" );
@@ -191,7 +195,8 @@ public class MessageDeframer {
                 compactIfNeeded();
                 frameOpenDetected = false;
             }
-        } while( isNull( (Object) frame ) );
+        }
+        while( frame == null );
 
         return frame;
     }
@@ -321,6 +326,7 @@ public class MessageDeframer {
      *
      * @return the number of bytes that can be safely added to this instance before getting frames.
      */
+    @SuppressWarnings( "unused" )
     public int capacity() {
         return buffer.capacity() - buffer.limit();
     }

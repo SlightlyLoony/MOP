@@ -1,5 +1,6 @@
 package com.dilatush.mop;
 
+import com.dilatush.util.AConfig;
 import com.dilatush.util.Base64;
 import com.dilatush.util.Config;
 
@@ -11,7 +12,9 @@ import java.util.logging.Logger;
 import static com.dilatush.util.Base64.encode;
 import static com.dilatush.util.General.isNotNull;
 import static com.dilatush.util.General.isNull;
+import static com.dilatush.util.Internet.isValidHost;
 import static com.dilatush.util.Strings.isEmpty;
+import static com.dilatush.util.Strings.isNonEmpty;
 
 /**
  * A post office manages mailboxes and routes messages to and from the central post office.  Post offices are generally instantiated just once (effectively a
@@ -40,10 +43,6 @@ public class PostOffice extends Thread {
     private       final Mailbox                         cpoMailbox;          // for messages TO the central post office...
     private       final Mailbox                         poMailbox;
     private       final int                             mailboxQueueSize;
-    private       final int                             cpoMailboxQueueSize;
-    private       final byte[]                          secret;
-    private       final String                          cpoHost;
-    private       final int                             cpoPort;
     private       final CPOConnection                   connection;
     private       final MailReceiver                    mailReceiver;
     private       final Set<String>                     specialMessageTypes;  // message types with ".po" destination that need replies handled...
@@ -85,12 +84,74 @@ public class PostOffice extends Thread {
 
 
     /**
-     * Create a new {@link PostOffice} instance with the given configuration.
+     * Create a new {@link PostOffice} instance with the given {@link PostOfficeConfig}.
      *
      * @param _config the configuration.
      */
-    public PostOffice( final com.dilatush.mop.Config _config ) {
+    public PostOffice( final PostOfficeConfig _config ) {
         this( _config.name, _config.secret, _config.queueSize, _config.cpoHost, _config.cpoPort );
+    }
+
+    /**
+     * Simple validatable POJO to hold post office configuration information.
+     *
+     * @author Tom Dilatush  tom@dilatush.com
+     */
+    public static class PostOfficeConfig extends AConfig {
+
+        /**
+         * The name of this post office, which must be at least one character long and unique amongst all post offices connected to the same
+         * central post office.
+         */
+        public  String  name;
+
+        /**
+         * The secret used to encrypt messages to and from this post office and the central post office.  It must be identical to
+         * the secret for this post office that is configured on the central post office.
+         */
+        public  String  secret;
+
+        /**
+         * The maximum number of received messages that may be queued in a mailbox.  This value defaults to 100.
+         */
+        public  int     queueSize;
+
+        /**
+         * The fully qualified host name (or IP address) of the central post office host.
+         */
+        public  String  cpoHost;
+
+        /**
+         * The TCP port number for the central post office.  This value defaults to 4000; it's value must be in the range [1,024..65,535].
+         */
+        public  int     cpoPort;
+
+
+        /**
+         * Creates a new instance of this class, with default values of 100 for the queue size and 4000 for the CPO port number.
+         */
+        public PostOfficeConfig() {
+            queueSize = 100;
+            cpoPort   = 4000;
+        }
+
+
+        /**
+         * Verify that the fields of this object are valid.
+         */
+        @Override
+        protected void verify() {
+            validate( () -> !(isEmpty( name ) || name.contains( "." )),
+                    "Post Office name is empty or contains a period (\".\")" );
+            validate( () -> queueSize >= 1,
+                    "Post Office invalid maximum mailbox received message queue size: " + queueSize );
+            validate( () -> isNonEmpty( secret ),
+                    "Post Office missing shared secret" );
+            validate( () -> isValidHost( cpoHost ),
+                    "Post Office CPO host is not valid: " + cpoHost );
+            validate( () -> ((cpoPort >= 1024) && (cpoPort < 65536)),
+                    "Post Office CPO port is not valid: " + cpoPort );
+        }
     }
 
 
@@ -99,7 +160,7 @@ public class PostOffice extends Thread {
      *
      * @param _config the configuration.
      */
-    public PostOffice( final Config _config ) {
+    public PostOffice( final com.dilatush.util.Config _config ) {
         this( _config.optString( "name" ), _config.optString( "secret" ),_config.optInt( "queueSize" ), _config.optString( "cpoHost" ), _config.optInt( "cpoPort" ) );
     }
 
@@ -119,8 +180,6 @@ public class PostOffice extends Thread {
 
         name                = _name;
         mailboxQueueSize    = _mailboxQueueSize;
-        cpoHost             = _cpoHost;
-        cpoPort             = _cpoPort;
 
         if( isEmpty( name ) || name.contains( "." ) ) throw new IllegalArgumentException( "Name is empty or contains a period (\".\")" );
         if( mailboxQueueSize < 1) throw new IllegalArgumentException( "Invalid maximum mailbox received message queue size: " + mailboxQueueSize );
@@ -128,7 +187,7 @@ public class PostOffice extends Thread {
 
         prefix              = name + ".";
         timer               = new Timer( name + " Timer", true );
-        secret              = Base64.decodeBytes( _secretBase64 );
+        byte[] secret = Base64.decodeBytes( _secretBase64 );
         specialMessageTypes = new HashSet<>();
         specialMessageTypes.add( "manage.subscribe"   );
         specialMessageTypes.add( "manage.unsubscribe" );
@@ -136,9 +195,9 @@ public class PostOffice extends Thread {
         subscriptions       = new ConcurrentHashMap<>();
         specialReplyWaiters = new ConcurrentHashMap<>();
         nextID              = new AtomicLong( 0 );
-        cpoMailboxQueueSize = CPO_MAILBOX_SIZE_MULTIPLIER * mailboxQueueSize;
+        int cpoMailboxQueueSize = CPO_MAILBOX_SIZE_MULTIPLIER * mailboxQueueSize;
         cpoMailbox          = new Mailbox( this, CPO_MAILBOX_NAME, cpoMailboxQueueSize );
-        connection          = new CPOConnection( this, cpoHost, cpoPort, secret );
+        connection          = new CPOConnection( this, _cpoHost, _cpoPort, secret );
         poMailbox           = createMailbox( "po" );
         mailReceiver        = new MailReceiver();
 
@@ -309,16 +368,14 @@ public class PostOffice extends Thread {
         // scan to find all our foreign subscriptions...
         String ourPO = name + ".";
         Set<Map.Entry<String,Map<String,Mailbox>>> entries = subscriptions.entrySet();
-        Iterator<Map.Entry<String,Map<String,Mailbox>>> it = entries.iterator();
-        while( it.hasNext() ) {
+        for( final Map.Entry<String, Map<String, Mailbox>> entry : entries ) {
 
             // if this is a local subscription, just move along...
-            Map.Entry<String,Map<String,Mailbox>> entry = it.next();
             String key = entry.getKey();
             if( key.startsWith( ourPO ) ) continue;
 
             // it's foreign, so resubscribe...
-            Map<String,Mailbox> mailboxes = entry.getValue();
+            Map<String, Mailbox> mailboxes = entry.getValue();
             for( String subscriber : mailboxes.keySet() ) {
 
                 String type = "manage.subscribe";
@@ -326,9 +383,9 @@ public class PostOffice extends Thread {
                 String source = key.substring( 0, key.indexOf( '.', sourcePO.length() + 1 ) );
                 String subscriptionType = key.substring( source.length() + 1 );
                 Message message = new Message( name + ".po", sourcePO + ".po", type, getNextID(), null, true );
-                message.put( "source",    source           );
-                message.put( "type",      subscriptionType );
-                message.put( "requestor", subscriber       );
+                message.put( "source", source );
+                message.put( "type", subscriptionType );
+                message.put( "requestor", subscriber );
                 send( message );
             }
         }
@@ -363,6 +420,7 @@ public class PostOffice extends Thread {
      * @param _name the name of the mailbox to retrieve.
      * @return the mailbox retrieved, or <code>null</code> if no such mailbox exists.
      */
+    @SuppressWarnings( "unused" )
     public synchronized Mailbox getMailbox( final String _name ) {
         return mailboxes.get( _name );
     }
