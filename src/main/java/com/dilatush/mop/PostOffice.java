@@ -140,16 +140,16 @@ public class PostOffice extends Thread {
          * Verify that the fields of this object are valid.
          */
         @Override
-        protected void verify() {
-            validate( () -> !(isEmpty( name ) || name.contains( "." )),
+        public void verify( final List<String> _messages ) {
+            validate( () -> !(isEmpty( name ) || name.contains( "." )), _messages,
                     "Post Office name is empty or contains a period (\".\")" );
-            validate( () -> queueSize >= 1,
+            validate( () -> queueSize >= 1, _messages,
                     "Post Office invalid maximum mailbox received message queue size: " + queueSize );
-            validate( () -> isNonEmpty( secret ),
+            validate( () -> isNonEmpty( secret ), _messages,
                     "Post Office missing shared secret" );
-            validate( () -> isValidHost( cpoHost ),
+            validate( () -> isValidHost( cpoHost ), _messages,
                     "Post Office CPO host is not valid: " + cpoHost );
-            validate( () -> ((cpoPort >= 1024) && (cpoPort < 65536)),
+            validate( () -> ((cpoPort >= 1024) && (cpoPort < 65536)), _messages,
                     "Post Office CPO port is not valid: " + cpoPort );
         }
     }
