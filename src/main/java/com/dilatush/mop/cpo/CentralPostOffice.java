@@ -41,7 +41,7 @@ public class CentralPostOffice {
 
     public final static DateTimeFormatter  TIME_FORMATTER
             = DateTimeFormatter
-            .ofPattern( "YYYY/MM/dd HH:mm:ss.SSS zzzz" )
+            .ofPattern( "yyyy/MM/dd HH:mm:ss.SSS zzzz" )
             .withZone( ZoneId.systemDefault() );
 
     private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
@@ -61,6 +61,7 @@ public class CentralPostOffice {
     /* package */ final Map<String,POClient>        clients;
 
     /* package */ volatile boolean shutdown;
+    @SuppressWarnings( "unused" )
     private       volatile RunMonitors monitors;    // keeps a monitor reference until it has finished, so GC doesn't get it...
 
     // Notes:
@@ -178,19 +179,16 @@ public class CentralPostOffice {
 
                 // now handle each possible message type...
                 switch( _message.type ) {
-
-                    case CONNECT:   handleConnect(   _message, false             ); break;
-                    case RECONNECT: handleConnect(   _message, true              ); break;
-                    case STATUS:    handleStatus(    _message                    ); break;
-                    case WRITE:     handleWrite(     _message                    ); break;
-                    case ADD:       handleAdd(       _message                    ); break;
-                    case DELETE:    handleDelete(    _message                    ); break;
-                    case MONITOR:   handleMonitor(   _message                    ); break;
-                    case PONG:      handlePong(      _message                    ); break;
-                    case CONNECTED: handleConnected( _message                    ); break;
-
-                    default:
-                        LOGGER.severe( "Unknown message type received: " + _message.type );
+                    case CONNECT   -> handleConnect( _message, false );
+                    case RECONNECT -> handleConnect( _message, true );
+                    case STATUS    -> handleStatus( _message );
+                    case WRITE     -> handleWrite( _message );
+                    case ADD       -> handleAdd( _message );
+                    case DELETE    -> handleDelete( _message );
+                    case MONITOR   -> handleMonitor( _message );
+                    case PONG      -> handlePong( _message );
+                    case CONNECTED -> handleConnected( _message );
+                    default        -> LOGGER.severe( "Unknown message type received: " + _message.type );
                 }
                 return;
             }
@@ -228,8 +226,8 @@ public class CentralPostOffice {
 
     private class RunMonitors extends Thread {
 
-        private Message message;
-        private POClient client;
+        private       Message  message;
+        private final POClient client;
 
         private RunMonitors( final Message _message ) {
             client = clients.get( _message.fromPO );

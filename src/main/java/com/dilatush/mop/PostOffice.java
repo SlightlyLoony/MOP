@@ -1,6 +1,6 @@
 package com.dilatush.mop;
 
-import com.dilatush.util.AConfig;
+import com.dilatush.util.config.AConfig;
 import com.dilatush.util.Base64;
 import com.dilatush.util.Config;
 
@@ -18,7 +18,7 @@ import static com.dilatush.util.Strings.isNonEmpty;
 
 /**
  * A post office manages mailboxes and routes messages to and from the central post office.  Post offices are generally instantiated just once (effectively a
- * singleton) per process, though this is neither required or enforced.
+ * singleton) per process, though this is neither required nor enforced.
  *
  * @author Tom Dilatush  tom@dilatush.com
  */
@@ -545,9 +545,9 @@ public class PostOffice extends Thread {
 
                     // decide what to do with it...
                     switch( msg.type ) {
-                        case "manage.subscribe":   handleSubscriptions( msg, true  ); break;
-                        case "manage.unsubscribe": handleSubscriptions( msg, false ); break;
-                        default: LOGGER.severe( "Unknown po message type received: " + msg.type );
+                        case "manage.subscribe"   -> handleSubscriptions( msg, true );
+                        case "manage.unsubscribe" -> handleSubscriptions( msg, false );
+                        default                   -> LOGGER.severe( "Unknown po message type received: " + msg.type );
                     }
                 }
                 catch( InterruptedException _e ) {

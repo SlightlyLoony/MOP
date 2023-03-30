@@ -3,14 +3,17 @@ package com.dilatush.mop;
 import com.dilatush.util.Base64;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.util.Iterator;
-import java.util.Scanner;
+import java.util.concurrent.Semaphore;
 
 import static com.dilatush.util.General.isNotNull;
 import static java.lang.Thread.sleep;
@@ -25,14 +28,15 @@ import static java.lang.Thread.sleep;
  */
 public class CPOManager {
 
-    private static PostOffice po;
     private static ManagerActor ma;
     private static boolean quit;
     private static boolean monitor;
-    private static Scanner scanner;
-    private static volatile boolean wait;
+    private static BufferedReader reader;
+    private static Semaphore waiter;
 
-    public static void main( final String[] _args ) throws InterruptedException {
+    public static void main( final String[] _args ) throws Exception {
+
+        System.getProperties().setProperty( "java.util.logging.config.file", "logging.properties" );
 
         // get the path to our configuration file...
         String config = "CPOManager.json";   // the default...
@@ -49,7 +53,7 @@ public class CPOManager {
         }
 
         // get our post office...
-        po = new PostOffice( config );
+        PostOffice po = new PostOffice( config );
 
         // get our actor...
         ma = new ManagerActor( po );
@@ -61,28 +65,28 @@ public class CPOManager {
         }
 
         // now loop, printing the menu and getting a command, until the user says "quit"...
-        scanner = new Scanner( System.in );
+        reader = new BufferedReader( new InputStreamReader( System.in ) );
         quit = false;
+        waiter = new Semaphore( 1 );  // start out with a permit, as
         while( !quit ) {
 
+            // wait until the previous command has finished...
+            waiter.acquire();
+
             showMenu();
-            String command = scanner.nextLine();
+            String command = reader.readLine();
             String[] parts = command.split( "\\s+" );
-            switch( parts[0] ) {
-
-                case "quit":      handleQuit     ( parts ); break;
-                case "status":    handleStatus   ( parts ); break;
-                case "write":     handleWrite    ( parts ); break;
-                case "delete":    handleDelete   ( parts ); break;
-                case "add":       handleAdd      ( parts ); break;
-                case "monitor":   handleMonitor  ( parts ); break;
-                case "connected": handleConnected( parts ); break;
-                case "help":      handleHelp     ( parts ); break;
-
-                default:          handleError    ( parts ); break;
+            switch( parts[ 0 ] ) {
+                case "quit"      -> handleQuit( parts );
+                case "status"    -> handleStatus( parts );
+                case "write"     -> handleWrite( parts );
+                case "delete"    -> handleDelete( parts );
+                case "add"       -> handleAdd( parts );
+                case "monitor"   -> handleMonitor( parts );
+                case "connected" -> handleConnected( parts );
+                case "help"      -> handleHelp( parts );
+                default          -> handleError( parts );
             }
-
-            while( wait ) sleep( 100 );
         }
     }
 
@@ -102,17 +106,16 @@ public class CPOManager {
 
         // send the message to the CPO and wait for the acknowledgement...
         ma.requestDelete( po );
-        wait = true;
     }
 
 
+    @SuppressWarnings( "unused" )
     private static void handleMonitor( final String[] _parts ) {
         ma.requestMonitor();
-        wait = true;
     }
 
 
-    private static void handleAdd( final String[] _parts ) {
+    private static void handleAdd( final String[] _parts ) throws IOException {
 
         // first some sanity checking on the post office name...
         if( _parts.length < 2 ) {
@@ -126,13 +129,13 @@ public class CPOManager {
         }
 
         // if a shared secret was not specified, create one...
-        String secret = null;
+        String secret;
         if( _parts.length < 3 ) {
 
             // first get some random characters and a random-ish time...
             long startTime = System.nanoTime();
             System.out.print( "Enter some random characters, followed by <enter>: " );
-            String random = scanner.nextLine();
+            String random = reader.readLine();
             long stopTime = System.nanoTime();
 
             // get our random-ish bytes all collected...
@@ -143,7 +146,7 @@ public class CPOManager {
             bb.putLong( stopTime - startTime );
 
             // then hash all this to make a nice, shiny, new shared secret...
-            MessageDigest md = null;
+            MessageDigest md;
             try {
                 md = MessageDigest.getInstance( "SHA-256" );
             }
@@ -164,7 +167,7 @@ public class CPOManager {
         else {
             secret = _parts[2];
             try {
-                byte[] secretBytes = Base64.decodeBytes( secret );
+                Base64.decodeBytes( secret );
             }
             catch( Exception _e ) {
                 err( "The specified shared secret is not valid base64." );
@@ -174,7 +177,6 @@ public class CPOManager {
 
         // send the message to the CPO and wait for the acknowledgement...
         ma.requestAdd( po, secret );
-        wait = true;
     }
 
 
@@ -188,15 +190,15 @@ public class CPOManager {
 
         String helpOn = (_parts.length > 1) ? _parts[1] : "";
         switch( helpOn ) {
-            case "quit":      handleHelpQuit();      break;
-            case "help":      handleHelpHelp();      break;
-            case "status":    handleHelpStatus();    break;
-            case "write":     handleHelpWrite();     break;
-            case "add":       handleHelpAdd();       break;
-            case "delete":    handleHelpDelete();    break;
-            case "monitor":   handleHelpMonitor();   break;
-            case "connected": handleHelpConnected(); break;
-            default:
+            case "quit"      -> handleHelpQuit();
+            case "help"      -> handleHelpHelp();
+            case "status"    -> handleHelpStatus();
+            case "write"     -> handleHelpWrite();
+            case "add"       -> handleHelpAdd();
+            case "delete"    -> handleHelpDelete();
+            case "monitor"   -> handleHelpMonitor();
+            case "connected" -> handleHelpConnected();
+            default -> {
                 handleHelpQuit();
                 handleHelpHelp();
                 handleHelpStatus();
@@ -205,9 +207,8 @@ public class CPOManager {
                 handleHelpDelete();
                 handleHelpMonitor();
                 handleHelpConnected();
-                break;
+            }
         }
-        wait = true;
         waitForAck();
     }
 
@@ -274,37 +275,37 @@ public class CPOManager {
     }
 
 
+    @SuppressWarnings( "unused" )
     private static void handleWrite( final String[] _parts ) {
         print( "Sending write configuration file request..." );
         ma.requestWrite();
-        wait = true;
     }
 
 
-    private static void handleError( final String[] _parts ) throws InterruptedException {
+    private static void handleError( final String[] _parts ) {
         print( "Invalid command: " + _parts[0] );
-        wait = true;
         waitForAck();
     }
 
 
+    @SuppressWarnings( "unused" )
     private static void handleQuit( final String[] _parts ) {
         print( "Goodbye, manager!" );
         quit = true;
     }
 
 
-    private static void handleConnected( final String[] parts ) {
+    @SuppressWarnings( "unused" )
+    private static void handleConnected( final String[] _parts ) {
         print( "Sending connected request..." );
         ma.requestConnected();
-        wait = true;
     }
 
 
+    @SuppressWarnings( "unused" )
     private static void handleStatus( final String[] _parts ) {
         print( "Sending status request..." );
         ma.requestStatus();
-        wait = true;
     }
 
 
@@ -328,8 +329,13 @@ public class CPOManager {
 
     private static void waitForAck() {
         System.out.print( "Press <enter> to continue..." );
-        scanner.nextLine();
-        wait = false;
+        try {
+            reader.readLine();
+        }
+        catch( IOException _e ) {
+            print( "Exception when waiting for <enter>" );
+        }
+        waiter.release();
     }
 
 
@@ -365,6 +371,7 @@ public class CPOManager {
             while( !gotStatus && (count < 100) ) {
                 count++;
                 try {
+                    //noinspection BusyWait
                     sleep( 10 );
                 }
                 catch( InterruptedException _e ) {

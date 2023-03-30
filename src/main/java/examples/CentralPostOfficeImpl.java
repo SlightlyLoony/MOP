@@ -6,7 +6,6 @@ import java.io.File;
 import java.util.logging.Logger;
 
 import static com.dilatush.util.General.isNotNull;
-import static java.lang.Thread.sleep;
 
 /**
  * An example implementation of a central post office.  Accepts the following arguments on the command line (note that if the log configuration file
@@ -19,6 +18,7 @@ import static java.lang.Thread.sleep;
  */
 public class CentralPostOfficeImpl {
 
+    @SuppressWarnings( "FieldCanBeLocal" )
     private static Logger LOGGER;
 
     public static void main( final String[] _args ) throws InterruptedException {
@@ -43,7 +43,6 @@ public class CentralPostOfficeImpl {
         CentralPostOffice cpo = new CentralPostOffice( config );
         cpo.start();
 
-        // now we just hang around forever, unless something interrupts us...
-        while( true ) sleep( 1000 );
+        // now we just leave, as cpo is running in a non-daemon thread...
     }
 }

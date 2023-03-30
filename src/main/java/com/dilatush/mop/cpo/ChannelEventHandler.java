@@ -28,7 +28,7 @@ import static com.dilatush.util.General.isNull;
 
     /* package */ Selector            selector;
     private       ServerSocketChannel channel;
-    private       CentralPostOffice   cpo;
+    private final CentralPostOffice   cpo;
 
     /* package */ volatile boolean testReadException;
     /* package */ volatile boolean testWriteException;
@@ -37,7 +37,7 @@ import static com.dilatush.util.General.isNull;
     /* package */ ChannelEventHandler( final CentralPostOffice _cpo ) {
         cpo = _cpo;
         setName( cpo.config.name + " Channel Event Handler" );
-        setDaemon( true );
+        setDaemon( false );  // this will be, in effect, the main thread for the Central Post Office...
     }
 
 
@@ -161,6 +161,7 @@ import static com.dilatush.util.General.isNull;
 
 
     // Handle presence of "accept" in selection key.  Creates a client connection, registers it, and enables receiving.
+    @SuppressWarnings( "unused" )
     private void handleAccept( final SelectionKey _key ) {
 
         // create our client socket...
@@ -202,7 +203,7 @@ import static com.dilatush.util.General.isNull;
 
         try {
             // a little setup...
-            SocketChannel client = (SocketChannel) _key.channel();
+            @SuppressWarnings( "resource" ) SocketChannel client = (SocketChannel) _key.channel();
             ByteBuffer buffer = ByteBuffer.allocate( cpo.config.maxMessageSize.get() + 10 );  // enough space for a complete max size message...
 
             // read until there are no more bytes to read, or we've filled our buffer...
@@ -248,6 +249,7 @@ import static com.dilatush.util.General.isNull;
 
 
     // Handle presence of "write" in selection key.  Writes a batch of bytes from the outgoing message queue of the relevant client connection.
+    @SuppressWarnings( "resource" )
     private void handleWrite( final SelectionKey _key ) {
 
         try {
@@ -270,8 +272,9 @@ import static com.dilatush.util.General.isNull;
             }
 
             // if we got some, then write out as much as we can...
-            if( isNotNull( serialized ) )
-                ((SocketChannel)(_key.channel())).write( serialized );
+            if( isNotNull( serialized ) ) {
+                ((SocketChannel) (_key.channel())).write( serialized );
+            }
         }
         catch( IOException _e ) {
 

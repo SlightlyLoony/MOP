@@ -12,13 +12,12 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.logging.Logger;
 
 import static com.dilatush.util.Strings.isNonEmpty;
 
 /**
  * Instances of this class represent unique messages with the MOP framework.  Instances are serializable to JSON and deserializable from JSON.  Note that
- * while messages are mutable, it is <i>not</i> permissable to modify a message instance once it has been sent.  Any such attempt will lead to unpredictable
+ * while messages are mutable, it is <i>not</i> permissible to modify a message instance once it has been sent.  Any such attempt will lead to unpredictable
  * behavior.<br><br>
  *
  * Instances of this class may be serialized for network transmission and deserialized from the network to be reinstantiated on the receiving side.
@@ -32,8 +31,6 @@ import static com.dilatush.util.Strings.isNonEmpty;
  * @author Tom Dilatush  tom@dilatush.com
  */
 public class Message extends HJSONObject {
-
-    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
     public final static String ENVELOPE_NAME = "-={([env])}=-";  // chosen to be descriptive AND exceedingly unlikely to suffer from collision...
     public final static String FROM_ATTR     = "from";
@@ -191,7 +188,7 @@ public class Message extends HJSONObject {
         // now we turn it into bytes (UTF-8 encoded JSON)...
         byte[] data = holder.toString().getBytes( StandardCharsets.UTF_8 );
 
-        // at last it's time to actually encrypt...
+        // at last, it's time to actually encrypt...
         String secureString;
         try {
             Cipher cipher = Cipher.getInstance( "AES/CBC/PKCS5Padding" );
@@ -334,6 +331,7 @@ public class Message extends HJSONObject {
      *
      * @return true if this instance represents a reply message.
      */
+    @SuppressWarnings( "BooleanMethodIsAlwaysInverted" )
     public boolean isReply() {
         return isDirect() && isNonEmpty( reply );
     }
