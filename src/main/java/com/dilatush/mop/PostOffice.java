@@ -22,7 +22,7 @@ import static com.dilatush.util.Strings.isNonEmpty;
  *
  * @author Tom Dilatush  tom@dilatush.com
  */
-public class PostOffice extends Thread {
+public class PostOffice {
 
     private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
 
