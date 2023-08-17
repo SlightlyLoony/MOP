@@ -12,8 +12,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.dilatush.util.General.isNotNull;
-import static com.dilatush.util.General.isNull;
+import static com.dilatush.util.General.*;
 
 /**
  * Implements a handler for all the NIO events (connecting, reading, writing) associated with the central post office's network communications.
@@ -24,7 +23,7 @@ import static com.dilatush.util.General.isNull;
  */
 /* package */ class ChannelEventHandler extends Thread {
 
-    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
+    private static final Logger LOGGER                 = getLogger();
 
     /* package */ Selector            selector;
     private       ServerSocketChannel channel;
@@ -81,7 +80,7 @@ import static com.dilatush.util.General.isNull;
 
         while( true ) {
 
-            // catch anything that might possibly be recovered from, and keep on trucking...
+            // catch anything that might be recovered from, and keep on trucking...
             try {
                 select();
 

@@ -17,8 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.dilatush.util.General.isNotNull;
-import static com.dilatush.util.General.isNull;
+import static com.dilatush.util.General.*;
 import static com.dilatush.util.Strings.isNonEmpty;
 
 /**
@@ -39,12 +38,13 @@ public class CentralPostOffice {
     public final static String MONITOR   = "manage.monitor";
     public final static String CONNECTED = "manage.connected";
 
+    @SuppressWarnings( "SpellCheckingInspection" )
     public final static DateTimeFormatter  TIME_FORMATTER
             = DateTimeFormatter
             .ofPattern( "yyyy/MM/dd HH:mm:ss.SSS zzzz" )
             .withZone( ZoneId.systemDefault() );
 
-    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
+    private static final Logger LOGGER                 = getLogger();
     private static final int    PONG_CHECK_INTERVAL_MS = 100;
     private static final int    RXBYTES_QUEUE_SIZE     = 100;       // number of blocks of bytes that can be in queue at once...
 
@@ -53,6 +53,7 @@ public class CentralPostOffice {
     private       final Timer                       timer;
     private       final Map<String,Set<String>>     subscriptions;  // note 1...
     /* package */ final String                      configFilePath;
+    /* package */ final String                      secretsFilePath;
     /* package */ final Map<String,POConnection>    connections;
     /* package */ final ArrayBlockingQueue<RxBytes> rxbytes;
     /* package */ final ChannelEventHandler         handler;
@@ -72,18 +73,26 @@ public class CentralPostOffice {
     //     publish messages.  The value at that key is a set of subscribing mailbox names: (po).(mailbox)
     //
 
-    public CentralPostOffice( final String _configFilePath ) {
-        started        = Instant.now();
-        configFilePath = _configFilePath;
-        timer          = new Timer( "Central Post Office Timer", true );
-        connections    = new ConcurrentHashMap<>();
-        subscriptions  = new ConcurrentHashMap<>();
-        config         = Config.initializeConfig( _configFilePath );
-        rxbytes        = new ArrayBlockingQueue<>( RXBYTES_QUEUE_SIZE );
-        rxhandler      = new RxBytesHandler();
-        clients        = config.clients;    // just making a local convenience variable...
-        nextID         = new AtomicLong( 0 );
-        handler        = new ChannelEventHandler( this );
+
+    /**
+     * Creates a new central post office, with the configuration and client secrets taken from the given paths.
+     *
+     * @param _configFilePath the path to the Java configuration file.
+     * @param _secretsFilePath the path to the client secrets file.
+     */
+    public CentralPostOffice( final String _configFilePath, final String _secretsFilePath ) {
+        started         = Instant.now();
+        configFilePath  = _configFilePath;
+        secretsFilePath = _secretsFilePath;
+        timer           = new Timer( "Central Post Office Timer", true );
+        connections     = new ConcurrentHashMap<>();
+        subscriptions   = new ConcurrentHashMap<>();
+        config          = Config.initializeConfig( configFilePath, secretsFilePath );
+        rxbytes         = new ArrayBlockingQueue<>( RXBYTES_QUEUE_SIZE );
+        rxhandler       = new RxBytesHandler();
+        clients         = config.clients;    // just making a local convenience variable...
+        nextID          = new AtomicLong( 0 );
+        handler         = new ChannelEventHandler( this );
     }
 
 
@@ -102,6 +111,7 @@ public class CentralPostOffice {
     /**
      * Shuts down the central post office, including all subordinate threads.
      */
+    @SuppressWarnings( "unused" )
     public void shutdown() {
 
         LOGGER.info( "Central Post Office is shutting down" );
@@ -204,7 +214,7 @@ public class CentralPostOffice {
         POClient client = clients.get( _po );
         if( isNotNull( client ) ) {
             if( _message.isEncrypted() ) {
-                Message copy = new Message( _message.toJSON() );            // make a copy so we keep the source encryption...
+                Message copy = new Message( _message.toJSON() );            // make a copy, so we keep the source encryption...
                 copy.reEncrypt( _source.secretBytes, client.secretBytes );  // decrypt/encrypt for source/destination...
                 client.deliver( copy );
             }
@@ -372,8 +382,8 @@ public class CentralPostOffice {
         POClient manager = clients.get( _message.fromPO );
         if( isNull( manager ) || !manager.isManager() ) return;
 
-        // ok, it is a manager, so write the configuration file out...
-        config.write( configFilePath );
+        // ok, it is a manager, so write the secrets file out...
+        config.write( secretsFilePath );
 
         // now send the ack back...
         Message msg = new Message( "central.po", _message.from, "manage.write", getNextID(), null, false );
@@ -485,9 +495,8 @@ public class CentralPostOffice {
         LOGGER.info( "Associated post office " + client.name + " with connection " + connection.name );
 
         // now send the appropriate response back to the client post office...
-        String fromClient = _message.from.substring( 0, _message.from.indexOf( '.' ) );
         String type = "manage." + ((client.connections.get() == 0) ? "connect" : "reconnect");
-        String toPO = fromClient + ".po";
+        String toPO = poName + ".po";
         Message response = new Message( toPO, _message.from, type, getNextID(), _message.id, false  );
         response.put( "maxMessageSize", config.maxMessageSize );
         response.put( "pingIntervalMS", config.pingIntervalMS );
@@ -517,7 +526,7 @@ public class CentralPostOffice {
             String key = entry.getKey();
             if( !key.startsWith( prefix ) ) continue;
 
-            // if we get here, the prefix matches and we need to send messages to the connecting client...
+            // if we get here, the prefix matches, and we need to send messages to the connecting client...
             for( String subscriber : entry.getValue() ) {
 
                 String type = "manage.subscribe";
@@ -553,13 +562,13 @@ public class CentralPostOffice {
 
     /* package */ void closeConnection( final POConnection _connection ) {
 
-        // if some numbskull calls us without a connection, just leave...
+        // if some numskull calls us without a connection, just leave...
         if( isNull( _connection ) ) return;
 
         // get the key for this connection, a bit indirectly...
         SelectionKey key = _connection.socket.keyFor( handler.selector );
 
-        // if we found a key, kill the attachment so we don't hang onto the POConnection object...
+        // if we found a key, kill the attachment, so we don't hang onto the POConnection object...
         if( isNotNull( key ) ) key.attach( null );
 
         // now close the connection...
@@ -567,30 +576,6 @@ public class CentralPostOffice {
 
         // and remove it from our collection of connections...
         connections.remove( _connection.name );
-    }
-
-
-    public void killConnection( final String _name ) {
-        POClient client = clients.get( _name );
-        if( isNull( client ) ) return;
-        POConnection connection = client.connection;
-        if( isNull( connection ) ) return;
-        closeConnection( connection );
-    }
-
-
-    public void killServerSocket() {
-        handler.close();
-    }
-
-
-    public void testReadException() {
-        handler.testReadException = true;
-    }
-
-
-    public void testWriteException() {
-        handler.testWriteException = true;
     }
 
 

@@ -4,6 +4,7 @@
 scp out/artifacts/CPO.jar tom@beast:/apps/cpo
 scp CPO.service tom@beast:/apps/cpo
 scp logging.properties tom@beast:/apps/cpo
+scp configurationCPO.java tom@beast:/apps/cpo
 
 # execute commands on the beast
 # get to the app directory
@@ -16,6 +17,8 @@ sudo chown cpo:cpo CPO.jar
 sudo chmod ug+xrw CPO.jar
 sudo chown cpo:cpo logging.properties
 sudo chmod ug+xrw logging.properties
+sudo chown cpo:cpo configurationCPO.java
+sudo chmod ug+xrw configurationCPO.java
 sudo cp -u CPO.service /etc/systemd/system
 sudo chown cpo:cpo /etc/systemd/system/CPO.service
 sudo chmod ug+xrw /etc/systemd/system/CPO.service

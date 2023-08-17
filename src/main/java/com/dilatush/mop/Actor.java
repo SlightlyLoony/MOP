@@ -5,8 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.dilatush.util.General.isNotNull;
-import static com.dilatush.util.General.isNull;
+import static com.dilatush.util.General.*;
 import static com.dilatush.util.Strings.isEmpty;
 
 /**
@@ -26,9 +25,10 @@ import static com.dilatush.util.Strings.isEmpty;
  *
  * @author Tom Dilatush  tom@dilatush.com
  */
+@SuppressWarnings( { "unused", "SpellCheckingInspection" } )
 public abstract class Actor {
 
-    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
+    private static final Logger LOGGER                 = getLogger();
 
     public final PostOffice                 po;
     public final String                     name;
@@ -145,6 +145,7 @@ public abstract class Actor {
      * @param _minor the minor type to match.
      * @return the handle for the registered message handler (used for deregistration only; otherwise may be ignored).
      */
+    @SuppressWarnings( { "UnusedReturnValue", "SameParameterValue" } )
     protected Object registerFQDirectMessageHandler( final MessageHandler _handler, final String _from, final String _major, final String _minor ) {
         return registerMessageHandler( _handler, false, _from, _major, _minor );
     }
@@ -320,7 +321,7 @@ public abstract class Actor {
                     if( handled( message, defaultKey(     message ) ) ) continue;
 
                     // if we get here, there was no matching handler, so just log it and leave...
-                    LOGGER.info( "No handler for " + message.toString() );
+                    LOGGER.info( "No handler for " + message );
                 }
                 catch( InterruptedException _e ) {
                     break;

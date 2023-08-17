@@ -7,11 +7,11 @@ import com.dilatush.util.Config;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 import static com.dilatush.util.Base64.encode;
-import static com.dilatush.util.General.isNotNull;
-import static com.dilatush.util.General.isNull;
+import static com.dilatush.util.General.*;
 import static com.dilatush.util.Internet.isValidHost;
 import static com.dilatush.util.Strings.isEmpty;
 import static com.dilatush.util.Strings.isNonEmpty;
@@ -24,16 +24,17 @@ import static com.dilatush.util.Strings.isNonEmpty;
  */
 public class PostOffice {
 
-    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
+    private static final Logger LOGGER                 = getLogger();
 
     public  final static String CPO_MAILBOX_NAME = "[({CPO})]";
 
     public        final String name;       // the name of this post office, unique within the scope of the associated central post office...
     public        final String prefix;     // the prefix...
 
-    private       final static int CPO_MAILBOX_SIZE_MULTIPLIER      = 10;
-    private       final static int SPECIAL_WAITER_CHECK_INTERVAL_MS = 100;
-    private       final static int SPECIAL_WAITER_EXPIRATION_MS     = 1000;
+    private final static int                       CPO_MAILBOX_SIZE_MULTIPLIER      = 10;
+    private final static int                       SPECIAL_WAITER_CHECK_INTERVAL_MS = 100;
+    private final static int                       INITIAL_SUB_RESEND_MS            = 60 * 1000;
+    private final static Function<Integer,Integer> SUBSEQUENT_SUB_RESEND_MS         = (p) -> Math.min(3_600_000, p * 2);
 
     /* package */ final Timer                           timer;
 
@@ -61,8 +62,9 @@ public class PostOffice {
     // 2.  Mailboxes are indexed by their name, NOT qualified by the post office name.  In other words, "mailbox", not "post office.mailbox".
     //
     // 3.  This map contains an entry (indexed by message id) for every message of one of the special types that was sent and is expecting a reply.
-    //     If replies are not received within a certain time, then the messages are resent.  This is used for (at least) foreign subscribe and
-    //     unsubscribe messages, where we do not want to block the thread making the subscription.
+    //     If replies are not received within a certain time, then the messages are resent.  The interval for resending starts small, increased (by a
+    //     per message type function) up to a limit.  This is used for (at least) foreign subscribe and unsubscribe messages, where we do not want to block
+    //     the thread making the subscription.
 
     /**
      * Creates a new instance of this class from the specified parameters.
@@ -208,6 +210,7 @@ public class PostOffice {
     /**
      * Shuts down this post office, including all subordinate threads.
      */
+    @SuppressWarnings( "unused" )
     public void shutdown() {
 
         // let all our threads know we're shutting down...
@@ -265,7 +268,7 @@ public class PostOffice {
                 boolean isToPO = "po".equals( _message.to.substring( _message.to.indexOf( '.' ) + 1 ) );
                 boolean isType = specialMessageTypes.contains( _message.type );
                 if( isToPO && isType && !_message.isReply() )
-                    specialReplyWaiters.put( _message.id, new SpecialReplyWaiter( _message, System.currentTimeMillis() ) );
+                    specialReplyWaiters.put( _message.id, new SpecialReplyWaiter( _message, INITIAL_SUB_RESEND_MS, SUBSEQUENT_SUB_RESEND_MS ) );
 
                 // forward it to the CPO through the CPO mailbox...
                 cpoMailbox.receive( _message );
@@ -499,27 +502,37 @@ public class PostOffice {
     }
 
 
-    /* package */ void killSocket() {
+    /* package */
+    @SuppressWarnings( "unused" )
+    void killSocket() {
         connection.killSocket();
     }
 
 
-    /* package */ void killWriter() {
+    /* package */
+    @SuppressWarnings( "unused" )
+    void killWriter() {
         connection.killWriter();
     }
 
 
-    /* package */ void killReader() {
+    /* package */
+    @SuppressWarnings( "unused" )
+    void killReader() {
         connection.killReader();
     }
 
 
-    /* package */ void readTestException() {
+    /* package */
+    @SuppressWarnings( "unused" )
+    void readTestException() {
         connection.readTestException();
     }
 
 
-    /* package */ void writeTestException() {
+    /* package */
+    @SuppressWarnings( "unused" )
+    void writeTestException() {
         connection.writeTestException();
     }
 
@@ -587,13 +600,28 @@ public class PostOffice {
 
 
     private static class SpecialReplyWaiter {
-        private final Message message; // the message that we're waiting for a reply to...
-        private long sentMS;           // the system time that we sent the message...
+        private final Message                   message; // the message that we're waiting for a reply to...
+        private final Function<Integer,Integer> subMS;   // compute the next wait period...
+        private long sentMS;  // the system time that we sent (or resent) the message...
+        private int  waitMS;  // how long to wait before resending...
 
 
-        public SpecialReplyWaiter( final Message _message, final long _sentMS ) {
+        public SpecialReplyWaiter( final Message _message, final int _initialWaitMS, final Function<Integer,Integer> _subMS ) {
             message = _message;
-            sentMS = _sentMS;
+            sentMS = System.currentTimeMillis();
+            subMS = _subMS;
+            waitMS = _initialWaitMS;
+        }
+
+
+        public boolean isExpired() {
+            return System.currentTimeMillis() > (sentMS + waitMS);
+        }
+
+
+        public void updateWait() {
+            waitMS = subMS.apply( waitMS );
+            sentMS = System.currentTimeMillis();
         }
     }
 
@@ -606,12 +634,11 @@ public class PostOffice {
         @Override
         public void run() {
 
-            long current = System.currentTimeMillis();
             for( SpecialReplyWaiter waiter : specialReplyWaiters.values() ) {
 
-                if( SPECIAL_WAITER_EXPIRATION_MS < (current - waiter.sentMS) ) {
+                if( waiter.isExpired() ) {
                     cpoMailbox.receive( waiter.message );
-                    waiter.sentMS = current;
+                    waiter.updateWait();
                 }
             }
         }

@@ -6,12 +6,13 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
+import static com.dilatush.util.General.getLogger;
 import static com.dilatush.util.General.isNull;
 
 /**
  * Instances of this class accept batches of bytes (typically read from the network) and identify frames that contain serialized messages.  These
  * identified frames can be retrieved either as byte arrays or as deserialized messages.
- *
+ * <br>
  * Instances of this class are mutable and <i>not</i> threadsafe.
  *
  * @author Tom Dilatush  tom@dilatush.com
@@ -19,7 +20,7 @@ import static com.dilatush.util.General.isNull;
 public class MessageDeframer {
 
     @SuppressWarnings( "unused" )
-    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
+    private static final Logger LOGGER                 = getLogger();
 
     private static final byte OPEN = '[';
     private static final byte CLOSE = ']';
@@ -33,7 +34,7 @@ public class MessageDeframer {
 
     // Notes:
     // 1.  The position of this byte buffer is the position of the next character to be scanned, and the limit is the next character to be added.
-    //     Therefore limit-position gives the number of bytes left to be processed, capacity-limit the number of bytes that could be added.  Inside
+    //     Therefore, limit-position gives the number of bytes left to be processed, capacity-limit the number of bytes that could be added.  Inside
     //     any method of this class, those uses might be different, but between calls the preceding must hold.
 
 
@@ -105,7 +106,7 @@ public class MessageDeframer {
         int specifiedBufferLimit = _buffer.limit();
         _buffer.limit( _buffer.position() + appendCount );
 
-        // remember our old position so we can put it back later...
+        // remember our old position, so we can put it back later...
         int pos = buffer.position();
 
         // setup to copy our bytes to the right place...
@@ -144,7 +145,7 @@ public class MessageDeframer {
         // figure out how many bytes we can append...
         int appendCount = Math.min( buffer.capacity() - buffer.limit(), _length - _offset );
 
-        // remember our old position so we can put it back later...
+        // remember our old position, so we can put it back later...
         int pos = buffer.position();
 
         // setup to copy our bytes to the right place...
@@ -265,7 +266,7 @@ public class MessageDeframer {
 
 
     // Scan the base 64 encoded frame length and the ] termination character.
-    // return true if there a no more bytes to scan
+    // return true if there are no more bytes to scan
     // frameOpenDetected is set true, and frameLength is set, if a full frame open is detected.
     private boolean scanFrameLength() {
 

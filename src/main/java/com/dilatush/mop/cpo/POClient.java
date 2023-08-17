@@ -10,15 +10,16 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
-import static com.dilatush.util.General.isNotNull;
-import static com.dilatush.util.General.isNull;
+import static com.dilatush.util.General.*;
 
 /**
  * @author Tom Dilatush  tom@dilatush.com
  */
-/* package */ class POClient {
+/* package */
+@SuppressWarnings( "unused" )
+class POClient {
 
-    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
+    private static final Logger LOGGER                 = getLogger();
 
     private static final int OUTGOING_QUEUE_SIZE = 100;  // number of messages that can be held in outgoing queue...
 
@@ -149,7 +150,9 @@ import static com.dilatush.util.General.isNull;
     }
 
 
-    /* package */ void setManager( final boolean _value ) {
+    /* package */
+    @SuppressWarnings( "SameParameterValue" )
+    void setManager( final boolean _value ) {
         manager = _value;
     }
 

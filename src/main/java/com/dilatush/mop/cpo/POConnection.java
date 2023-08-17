@@ -13,8 +13,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.dilatush.util.General.isNotNull;
-import static com.dilatush.util.General.isNull;
+import static com.dilatush.util.General.*;
 
 /**
  * Instances of this class contain the state of a client post office connection to the central post office.
@@ -23,7 +22,7 @@ import static com.dilatush.util.General.isNull;
  */
 public class POConnection {
 
-    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
+    private static final Logger LOGGER                 = getLogger();
 
     public static final String CONNECTION_NAME = "-={([connectionName])}=-";   // name of attribute we add to provide connection name to router...
 
@@ -72,6 +71,7 @@ public class POConnection {
                 byte[] frame = deframer.getFrame();
 
                 // if we got nothing, it's time to leave...
+                //noinspection RedundantCast
                 if( isNull( (Object) frame ) ) break;
 
                 try {
@@ -79,7 +79,7 @@ public class POConnection {
                     // try to extract a message...
                     // TODO: handle JSON decoding errors...
                     Message msg = new Message( new String( frame, StandardCharsets.UTF_8 ) );
-                    LOGGER.finest( "Received: " + msg.toString() );
+                    LOGGER.finest( "Received: " + msg );
                     if( isNotNull( client ) )
                         client.rxMessages.incrementAndGet();
 

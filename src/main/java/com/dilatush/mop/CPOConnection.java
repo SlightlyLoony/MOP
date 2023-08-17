@@ -19,16 +19,16 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.dilatush.util.General.isNotNull;
-import static com.dilatush.util.General.isNull;
+import static com.dilatush.util.General.*;
 import static java.lang.Thread.sleep;
 
 /**
  * @author Tom Dilatush  tom@dilatush.com
  */
+@SuppressWarnings( { "unused", "RedundantCast" } )
 public class CPOConnection {
 
-    private static final Logger LOGGER                 = Logger.getLogger( new Object(){}.getClass().getEnclosingClass().getCanonicalName());
+    private static final Logger LOGGER                 = getLogger();
 
     private static final int CPO_CONNECT_TIMEOUT_MS   = 5000;
     private static final int MAX_OUTGOING_QUEUE_MSGS  = 100;
@@ -42,26 +42,26 @@ public class CPOConnection {
     private final byte[]                      secret;
     private final LinkedBlockingDeque<byte[]> outgoing;
     private final Object                      writeSync;
+    private final Shuttler                    shuttler;
 
     private volatile Reader          reader;
     private volatile Writer          writer;
-    private volatile Shuttler        shuttler;
     private volatile MessageDeframer deframer;
     private volatile byte[]          lastWritten;
 
 
-    private volatile Socket    socket;
-    private volatile long      pingIntervalMS;
-    private volatile boolean   connected;
-    private volatile Instant   lastConnectTime;
-    private volatile boolean   reconnectScheduled;
-    private AtomicInteger      maxMessageSize;
-    private AtomicLong         timeSinceLastPingMS;
-    private AtomicLong         connections;
-    private AtomicLong         rxMessages;
-    private AtomicLong         txMessages;
-    private AtomicLong         rxBytes;
-    private AtomicLong         txBytes;
+    private volatile Socket     socket;
+    private volatile long       pingIntervalMS;
+    private volatile boolean    connected;
+    private volatile Instant    lastConnectTime;
+    private volatile boolean    reconnectScheduled;
+    private final AtomicInteger maxMessageSize;
+    private final AtomicLong    timeSinceLastPingMS;
+    private final AtomicLong    connections;
+    private final AtomicLong    rxMessages;
+    private final AtomicLong    txMessages;
+    private final AtomicLong    rxBytes;
+    private final AtomicLong    txBytes;
 
 
     /**
@@ -208,7 +208,8 @@ public class CPOConnection {
             }
 
             // if we didn't get anything, wait briefly before we check again...
-            if( isNull( (Object) newBytes ) ) sleep( 5 );
+            if( isNull( (Object) newBytes ) ) //noinspection BusyWait
+                sleep( 5 );
         }
     }
 
@@ -346,6 +347,7 @@ public class CPOConnection {
                         LOGGER.log( Level.SEVERE, "Problem when attempting to connect; will try again", _e );
 
                         // wait a bit and try again...
+                        //noinspection BusyWait
                         sleep( 500 );
                     }
                 }
@@ -365,7 +367,7 @@ public class CPOConnection {
                 Message connectMsg = new Message( from, "central.po", type, po.getNextID(), null, false );
                 Authenticator auth = new Authenticator( secret, po.name, connectMsg.id );
                 connectMsg.put( "authenticator", Base64.encode( auth.getAuthenticator() ) );
-                LOGGER.finest( "Sending: " + connectMsg.toString() );
+                LOGGER.finest( "Sending: " + connectMsg );
                 deliverNext( connectMsg );
                 reconnectScheduled = false;
 
@@ -384,7 +386,7 @@ public class CPOConnection {
     private class Reader extends Thread {
 
         private InputStream      readStream;
-        private byte[]           buffer;
+        private final byte[]    buffer;
         private volatile boolean testException;
 
 
@@ -450,13 +452,10 @@ public class CPOConnection {
                                 if( (po.name + ".po").equals( rxMsg.to ) ) {
 
                                     switch( rxMsg.type ) {
-
-                                        case "manage.connect":   handleConnect( rxMsg, false ); break;
-                                        case "manage.reconnect": handleConnect( rxMsg, true  ); break;
-                                        case "manage.ping":      handlePing();                             break;
-
-                                        default:
-                                            po.send( rxMsg );  // other management messages get handled in the post office...
+                                        case "manage.connect" -> handleConnect( rxMsg, false );
+                                        case "manage.reconnect" -> handleConnect( rxMsg, true );
+                                        case "manage.ping" -> handlePing();
+                                        default -> po.send( rxMsg );  // other management messages get handled in the post office...
                                     }
                                 }
 
